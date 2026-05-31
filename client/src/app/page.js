@@ -1,23 +1,54 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
-// Acesta este un exemplu simplu de pagină care afișează o listă de cursuri din baza de date Supabase și include un Search Bar pentru filtrare.
+
 export default function Home() {
   const [courses, setCourses] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    async function getCourses() {
+    async function checkAuthAndFetchData() {
+      // 1. Verificăm dacă există o sesiune activă (dacă userul este logat)
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        // Dacă nu există sesiune, redirecționăm instant către login
+        router.push("/login");
+        return;
+      }
+
+      // 2. Dacă este logat, salvăm userul și aducem cursurile
+      setUser(session.user);
+      
       const { data } = await supabase.from('courses').select('*');
       if (data) setCourses(data);
+      
+      // 3. Oprim starea de încărcare pentru a afișa pagina
+      setLoading(false);
     }
-    getCourses();
-  }, []);
 
-  // Filtrare simplă pentru Search Bar
+    checkAuthAndFetchData();
+  }, [router]);
+
+  // Funcție pentru delogare (foarte utilă pentru a putea testa fluxul de mai multe ori)
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
   const filteredCourses = courses.filter(course =>
     course.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Cât timp verificăm autentificarea, afișăm un ecran alb/de încărcare 
+  // pentru a preveni acel "flash" în care userul vede pagina o secundă înainte de redirect
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center bg-white text-gray-500">Se încarcă...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-white text-black font-sans">
@@ -28,13 +59,22 @@ export default function Home() {
           <button className="text-sm font-medium hover:text-blue-600 transition">Create course</button>
           <button className="text-sm font-medium hover:text-blue-600 transition">Browse all</button>
         </div>
-        <div className="flex gap-4">
-          <button className="text-sm font-semibold py-2 px-4">LOGIN</button>
-          <button className="text-sm font-semibold bg-black text-white py-2 px-4 rounded-md">REGISTER</button>
+        
+        {/* ZONA BUTOANELOR DIN DREAPTA */}
+        <div className="flex items-center gap-4">
+          <button className="text-sm font-semibold bg-gray-100 text-black py-2 px-4 rounded-md transition hover:bg-gray-200">
+            View Profile
+          </button>
+          <button 
+            onClick={handleLogout} 
+            className="text-sm font-semibold text-red-500 hover:text-red-700 transition ml-2"
+          >
+            Logout
+          </button>
         </div>
       </header>
 
-      {/* SEARCH SECTION */}
+      {/* MAIN CONTENT - LISTA DE CURSURI + SEARCH BAR */}
       <main className="max-w-3xl mx-auto mt-20 px-4">
         <div className="relative mb-12">
           <input 
@@ -46,7 +86,7 @@ export default function Home() {
           <span className="absolute left-5 top-4.5 text-gray-400">🔍</span>
         </div>
 
-        {/* LISTA DE CURSURI (Google Style) */}
+        {/* LISTA DE CURSURI */}
         <div className="space-y-8">
           {filteredCourses.map((course) => (
             <div key={course.id} className="group cursor-pointer">
@@ -58,7 +98,7 @@ export default function Home() {
                 {course.description || "Learn the fundamentals of this course and master the key concepts with our AI companion."}
               </p>
               <div className="flex gap-3 mt-2">
-                 <span className="text-xs bg-gray-100 px-2 py-1 rounded">FREE</span>
+                 <span className="text-xs bg-gray-100 px-2 py-1 rounded text-black">FREE</span>
                  <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded">Beginner</span>
               </div>
             </div>
