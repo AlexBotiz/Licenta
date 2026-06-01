@@ -34,7 +34,7 @@ export default function Home() {
     checkAuthAndFetchData();
   }, [router]);
 
-  // Funcție pentru delogare (foarte utilă pentru a putea testa fluxul de mai multe ori)
+  // Funcție pentru delogare
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
@@ -44,8 +44,6 @@ export default function Home() {
     course.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Cât timp verificăm autentificarea, afișăm un ecran alb/de încărcare 
-  // pentru a preveni acel "flash" în care userul vede pagina o secundă înainte de redirect
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-white text-gray-500">Se încarcă...</div>;
   }
@@ -55,9 +53,22 @@ export default function Home() {
       {/* HEADER */}
       <header className="flex justify-between items-center p-4 border-b border-gray-100 px-8">
         <div className="flex items-center gap-8">
-          <h1 className="text-xl font-bold text-blue-600 tracking-tight cursor-pointer">LICENTA NAME</h1>
+          {/* Opțional: Când dai click pe titlu, se resetează tot căutarea ca pe orice site mare */}
+          <h1 
+            onClick={() => setSearchTerm("")} 
+            className="text-xl font-bold text-blue-600 tracking-tight cursor-pointer"
+          >
+            LICENTA NAME
+          </h1>
           <button className="text-sm font-medium hover:text-blue-600 transition">Create course</button>
-          <button className="text-sm font-medium hover:text-blue-600 transition">Browse all</button>
+          
+          {/* MODIFICARE: Butonul Browse all resetează acum searchTerm-ul */}
+          <button 
+            onClick={() => router.push("/courses")} 
+            className="text-sm font-medium hover:text-blue-600 transition"
+          >
+            Browse all
+          </button>
         </div>
         
         {/* ZONA BUTOANELOR DIN DREAPTA */}
@@ -77,8 +88,10 @@ export default function Home() {
       {/* MAIN CONTENT - LISTA DE CURSURI + SEARCH BAR */}
       <main className="max-w-3xl mx-auto mt-20 px-4">
         <div className="relative mb-12">
+          {/* MODIFICARE: Am adăugat value={searchTerm} pentru a goli textul când apeși Browse all */}
           <input 
             type="text"
+            value={searchTerm}
             placeholder="Search for a course..."
             className="w-full p-4 pl-12 rounded-full border border-gray-200 shadow-sm focus:shadow-md focus:outline-none transition-all"
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -86,29 +99,42 @@ export default function Home() {
           <span className="absolute left-5 top-4.5 text-gray-400">🔍</span>
         </div>
 
-        {/* LISTA DE CURSURI */}
-        <div className="space-y-8">
-          {filteredCourses.map((course) => (
-            <div key={course.id} className="group cursor-pointer">
-              <span className="text-xs text-gray-500 uppercase">Course</span>
-              <h2 className="text-xl text-blue-800 font-medium group-hover:underline decoration-1">
-                {course.title}
-              </h2>
-              <p className="text-gray-600 text-sm mt-1 leading-relaxed max-w-2xl">
-                {course.description || "Learn the fundamentals of this course and master the key concepts with our AI companion."}
-              </p>
-              <div className="flex gap-3 mt-2">
-                 <span className="text-xs bg-gray-100 px-2 py-1 rounded text-black">FREE</span>
-                 <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded">Beginner</span>
-              </div>
+        {/* LISTA DE CURSURI RECOMANDATE / FILTRATE */}
+      <div className="space-y-8">
+        {searchTerm === "" ? (
+          // Dacă bara de căutare e goală, arătăm doar o mică selecție (primele 3) ca fiind "Recomandate"
+          <>
+            <div className="border-b border-gray-100 pb-2 mb-4">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Cursuri recomandate</span>
             </div>
-          ))}
-          
-          {filteredCourses.length === 0 && (
-            <p className="text-center text-gray-400 mt-10">Nu am găsit niciun curs care să se potrivească căutării tale.</p>
-          )}
-        </div>
-      </main>
-    </div>
+            {courses.slice(0, 3).map((course) => (
+              <div key={course.id} onClick={() => router.push(`/course/${course.id}`)} className="group cursor-pointer">
+                <span className="text-xs text-gray-500 uppercase">Course</span>
+                <h2 className="text-xl text-blue-800 font-medium group-hover:underline decoration-1">{course.title}</h2>
+                <p className="text-gray-600 text-sm mt-1 leading-relaxed max-w-2xl">{course.description}</p>
+              </div>
+            ))}
+          </>
+        ) : (
+          // Dacă userul chiar scrie ceva în Search Bar, îi arătăm rezultatele filtrate din tot catalogul
+          <>
+            <div className="border-b border-gray-100 pb-2 mb-4">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Rezultatele căutării</span>
+            </div>
+            {filteredCourses.map((course) => (
+              <div key={course.id} onClick={() => router.push(`/course/${course.id}`)} className="group cursor-pointer">
+                <span className="text-xs text-gray-500 uppercase">Course</span>
+                <h2 className="text-xl text-blue-800 font-medium group-hover:underline decoration-1">{course.title}</h2>
+                <p className="text-gray-600 text-sm mt-1 leading-relaxed max-w-2xl">{course.description}</p>
+              </div>
+            ))}
+            {filteredCourses.length === 0 && (
+              <p className="text-center text-gray-400 mt-10">Nu am găsit niciun curs pentru "{searchTerm}".</p>
+            )}
+          </>
+        )}
+      </div>
+            </main>
+          </div>
   );
 }
