@@ -33,9 +33,8 @@ export default function BrowseCourses() {
       {/* HEADER MINI - pentru navigare înapoi */}
       <header className="flex justify-between items-center p-4 border-b border-gray-100 px-8 sticky top-0 bg-white z-50">
         <div className="flex items-center gap-8">
-          <h1 
-            onClick={() => router.push("/")} 
-            className="text-xl font-bold text-blue-600 tracking-tight cursor-pointer"
+          <h1  
+            className="text-xl font-bold text-blue-600 tracking-tight"
           >
             LICENTA NAME
           </h1>

@@ -55,8 +55,7 @@ export default function Home() {
         <div className="flex items-center gap-8">
           {/* Opțional: Când dai click pe titlu, se resetează tot căutarea ca pe orice site mare */}
           <h1 
-            onClick={() => setSearchTerm("")} 
-            className="text-xl font-bold text-blue-600 tracking-tight cursor-pointer"
+            className="text-xl font-bold text-blue-600 tracking-tight"
           >
             LICENTA NAME
           </h1>
