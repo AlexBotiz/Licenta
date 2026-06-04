@@ -1,11 +1,9 @@
 "use client";
-// Am adăugat "use" din react pentru a despacheta params conform regulilor Next.js 15/16
 import { useEffect, useState, use } from "react"; 
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
 export default function CourseDetails({ params }) {
-  // REZOLVARE EROARE: Despachetăm params-ul asincron înainte de a-i folosi proprietățile
   const unwrappedParams = use(params);
   const courseId = unwrappedParams.id;
 
@@ -24,7 +22,9 @@ export default function CourseDetails({ params }) {
         return;
       }
 
-      // 2. Aducem detaliile cursului din tabela 'courses' pe baza ID-ului
+      const email = session.user.email;
+
+      // 2. Aducem detaliile cursului din tabela 'courses'
       const { data: courseData } = await supabase
         .from('courses')
         .select('*')
@@ -33,8 +33,19 @@ export default function CourseDetails({ params }) {
 
       if (courseData) setCourse(courseData);
 
-      // 3. Aducem toate lecțiile legate de acest curs din tabela 'lessons'
-      // Punem într-un try-catch ca să nu crape pagina dacă tabela nu e gata încă în DB
+      // 3. MODIFICARE SIGURĂ: Verificăm dacă userul este deja înscris
+      // Folosim o listă simplă ca să nu arunce erori dacă nu găsește nimic
+      const { data: enrollmentData } = await supabase
+        .from('enrollments')
+        .select('id')
+        .eq('user_email', email)
+        .eq('course_id', courseId);
+
+      if (enrollmentData && enrollmentData.length > 0) {
+        setIsEnrolled(true);
+      }
+
+      // 4. Aducem toate lecțiile legate de acest curs
       try {
         const { data: lessonsData } = await supabase
           .from('lessons')
@@ -52,10 +63,34 @@ export default function CourseDetails({ params }) {
     fetchCourseData();
   }, [courseId, router]);
 
-  // Funcția pentru butonul de Înscriere
-  const handleEnroll = () => {
-    setIsEnrolled(true);
-    alert("Te-ai înscris cu succes la acest curs!");
+  // Funcția asincronă care salvează înscrierea în Supabase
+  const handleEnroll = async () => {
+    // Luăm din nou sesiunea ca să fim siguri că avem email-ul salvat corect
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      alert("Sesiunea a expirat. Te rugăm să te loghezi din nou.");
+      router.push("/login");
+      return;
+    }
+
+    // Trimitem datele în tabela enrollments
+    const { error } = await supabase
+      .from('enrollments')
+      .insert([
+        { 
+          user_email: session.user.email, 
+          course_id: courseId 
+        }
+      ]);
+
+    if (!error) {
+      setIsEnrolled(true);
+      alert("Te-ai înscris cu succes la acest curs!");
+    } else {
+      console.error("Eroare Supabase:", error);
+      alert("A apărut o problemă la înscriere. Verifică consola.");
+    }
   };
 
   if (loading) {
@@ -71,9 +106,9 @@ export default function CourseDetails({ params }) {
       
       {/* HEADER SIMPLU CU BUTON DE IEȘIRE (X) */}
       <header className="p-6 flex justify-between items-center max-w-5xl mx-auto">
-        <h1 className="text-xl font-bold text-blue-600 tracking-tight">LICENTA NAME</h1>
+        <h1 className="text-xl font-bold text-blue-600 tracking-tight cursor-pointer" onClick={() => router.push('/')}>LICENTA NAME</h1>
         <button 
-          onClick={() => router.back()} // Îl trimite pe utilizator înapoi de unde a venit
+          onClick={() => router.back()} 
           className="w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:bg-gray-100 transition text-gray-600 font-bold"
         >
           ✕
@@ -89,7 +124,7 @@ export default function CourseDetails({ params }) {
           {/* SECȚIUNEA HERO */}
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
             <span className="text-xs font-bold bg-blue-50 text-blue-600 px-3 py-1 rounded-full uppercase tracking-wide">
-              Curs disponibil
+              {isEnrolled ? "Curs activ" : "Curs disponibil"}
             </span>
             <h2 className="text-3xl font-bold text-gray-900 mt-4 mb-2">{course.title}</h2>
             <p className="text-gray-600 leading-relaxed text-base mb-6">
@@ -184,7 +219,6 @@ export default function CourseDetails({ params }) {
             </div>
           </div>
         </div>
-
       </main>
     </div>
   );

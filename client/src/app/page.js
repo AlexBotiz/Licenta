@@ -72,8 +72,11 @@ export default function Home() {
         
         {/* ZONA BUTOANELOR DIN DREAPTA */}
         <div className="flex items-center gap-4">
-          <button className="text-sm font-semibold bg-gray-100 text-black py-2 px-4 rounded-md transition hover:bg-gray-200">
-            View Profile
+          <button 
+          onClick={() => router.push("/profile")}
+          className="text-sm font-semibold bg-gray-100 text-black py-2 px-4 rounded-md transition hover:bg-gray-200"
+        >
+          View Profile
           </button>
           <button 
             onClick={handleLogout} 
