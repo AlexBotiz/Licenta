@@ -8,7 +8,7 @@ export default function CourseDetails({ params }) {
   const courseId = unwrappedParams.id;
 
   const [course, setCourse] = useState(null);
-  const [lessons, setLessons] = useState([]);
+  const [elements, setElements] = useState([]); // Schimbat din lessons în elements
   const [loading, setLoading] = useState(true);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const router = useRouter();
@@ -33,8 +33,7 @@ export default function CourseDetails({ params }) {
 
       if (courseData) setCourse(courseData);
 
-      // 3. MODIFICARE SIGURĂ: Verificăm dacă userul este deja înscris
-      // Folosim o listă simplă ca să nu arunce erori dacă nu găsește nimic
+      // 3. Verificăm dacă userul este deja înscris
       const { data: enrollmentData } = await supabase
         .from('enrollments')
         .select('id')
@@ -45,27 +44,28 @@ export default function CourseDetails({ params }) {
         setIsEnrolled(true);
       }
 
-      // 4. Aducem toate lecțiile legate de acest curs
+      // 4. Aducem elementele de puzzle legate de acest curs (înlocuit tabela veche 'lessons')
       try {
-        const { data: lessonsData } = await supabase
-          .from('lessons')
+        const { data: elementsData } = await supabase
+          .from('course_elements')
           .select('*')
-          .eq('course_id', courseId);
+          .eq('course_id', courseId)
+          .order('order_index', { ascending: true });
           
-        if (lessonsData) setLessons(lessonsData);
+        if (elementsData) setElements(elementsData);
       } catch (error) {
-        console.log("Tabela 'lessons' nu a fost găsită sau e goală:", error);
+        console.log("Tabela 'course_elements' nu a fost găsită sau e goală:", error);
       }
 
       setLoading(false);
     }
 
-    fetchCourseData();
+    if (courseId) {
+      fetchCourseData();
+    }
   }, [courseId, router]);
 
-  // Funcția asincronă care salvează înscrierea în Supabase
   const handleEnroll = async () => {
-    // Luăm din nou sesiunea ca să fim siguri că avem email-ul salvat corect
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
@@ -74,7 +74,6 @@ export default function CourseDetails({ params }) {
       return;
     }
 
-    // Trimitem datele în tabela enrollments
     const { error } = await supabase
       .from('enrollments')
       .insert([
@@ -89,7 +88,7 @@ export default function CourseDetails({ params }) {
       alert("Te-ai înscris cu succes la acest curs!");
     } else {
       console.error("Eroare Supabase:", error);
-      alert("A apărut o problemă la înscriere. Verifică consola.");
+      alert("A apărut o problemă la înscriere.");
     }
   };
 
@@ -137,7 +136,7 @@ export default function CourseDetails({ params }) {
                 <span>Creat de: <strong className="text-gray-900">Profesor / Admin</strong></span>
               </div>
               <span className="text-gray-300">|</span>
-              <span>⏳ {lessons.length > 0 ? `${lessons.length * 2} ore estimate` : "0 ore"}</span>
+              <span>⏳ {elements.length > 0 ? `${elements.length * 45} minute estimate` : "0 minute"}</span>
             </div>
           </div>
 
@@ -160,25 +159,30 @@ export default function CourseDetails({ params }) {
             </ul>
           </div>
 
-          {/* LISTA DE LECȚII */}
+          {/* LISTA DE ELEMENTE MODULARE (PROGRAMA CURSULUI) */}
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-            <h3 className="text-lg font-bold text-gray-900 mb-6">Lecțiile cursului ({lessons.length})</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-6">Programa cursului ({elements.length} module)</h3>
             
-            {lessons.length > 0 ? (
+            {elements.length > 0 ? (
               <div className="space-y-3">
-                {lessons.map((lesson, index) => (
-                  <div key={lesson.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+                {elements.map((elem, index) => (
+                  <div key={elem.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
                     <div className="flex items-center gap-4">
                       <span className="text-gray-400 font-semibold text-sm">{index + 1}.</span>
-                      <span className="font-medium text-gray-800 text-sm">{lesson.title}</span>
+                      <span className="text-base">
+                        {elem.type === "lesson" && "📄"}
+                        {elem.type === "exercise" && "💻"}
+                        {elem.type === "quiz" && "❓"}
+                      </span>
+                      <span className="font-medium text-gray-800 text-sm">{elem.title}</span>
                     </div>
-                    {!isEnrolled && <span className="text-gray-400 text-xs bg-gray-200/60 px-2 py-1 rounded">🔒 Blocata</span>}
+                    {!isEnrolled && <span className="text-gray-400 text-xs bg-gray-200/60 px-2 py-1 rounded">🔒 Blocat</span>}
                   </div>
                 ))}
               </div>
             ) : (
               <p className="text-gray-400 text-sm text-center py-6 bg-gray-50 rounded-xl border border-dashed">
-                Acest curs nu are încă lecții adăugate în baza de date.
+                Acest curs nu are încă module adăugate în baza de date.
               </p>
             )}
           </div>
@@ -199,7 +203,8 @@ export default function CourseDetails({ params }) {
               </button>
             ) : (
               <button 
-                onClick={() => alert("Felicitări! Această acțiune te va trimite în interfața de învățare cu AI-ul.")}
+                // TRIMITERE CĂTRE INTERFAȚA DE ÎNVĂȚARE (PLAYER)
+                onClick={() => router.push(`/course/${courseId}/learn`)}
                 className="w-full bg-green-500 text-white font-bold py-3.5 rounded-xl hover:bg-green-600 transition shadow-sm"
               >
                 Continuă cursul →
@@ -211,7 +216,7 @@ export default function CourseDetails({ params }) {
                 <span>Nivel:</span> <span className="font-semibold text-gray-900">Începător</span>
               </div>
               <div className="flex justify-between">
-                <span>Chestionare:</span> <span className="font-semibold text-gray-900">Incluse</span>
+                <span>Structură:</span> <span className="font-semibold text-gray-900">Blocuri Puzzle</span>
               </div>
               <div className="flex justify-between">
                 <span>Ghidaj AI:</span> <span className="font-semibold text-blue-600">Activ</span>
