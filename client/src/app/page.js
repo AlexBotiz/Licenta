@@ -57,9 +57,13 @@ export default function Home() {
           <h1 
             className="text-xl font-bold text-blue-600 tracking-tight"
           >
-            LICENTA NAME
+            Nume Licență
           </h1>
-          <button className="text-sm font-medium hover:text-blue-600 transition">Create course</button>
+          <button
+          onClick={() => router.push("/course/create")} 
+           className="text-sm font-medium hover:text-blue-600 transition"
+          >
+            Create course</button>
           
           {/* MODIFICARE: Butonul Browse all resetează acum searchTerm-ul */}
           <button 
