@@ -57,7 +57,7 @@ export default function Home() {
           <h1 
             className="text-xl font-bold text-blue-600 tracking-tight"
           >
-            Nume Licență
+            XGen Course
           </h1>
           <button
           onClick={() => router.push("/course/create")} 

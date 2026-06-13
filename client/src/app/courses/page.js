@@ -36,7 +36,7 @@ export default function BrowseCourses() {
           <h1  
             className="text-xl font-bold text-blue-600 tracking-tight"
           >
-            LICENTA NAME
+            XGen Course
           </h1>
           <span className="text-sm font-medium text-gray-500">/ Toate cursurile</span>
         </div>

@@ -10,7 +10,6 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editUsername, setEditUsername] = useState("");
-  const [editRole, setEditRole] = useState("student");
   const [uploading, setUploading] = useState(false);
   const router = useRouter();
 
@@ -57,7 +56,6 @@ export default function ProfilePage() {
       if (profile) {
         setProfileData(profile);
         setEditUsername(profile.username || "");
-        setEditRole(profile.role || "student");
       }
 
       // 2. Tragem cursurile la care e înscris
@@ -81,11 +79,11 @@ export default function ProfilePage() {
   const handleSaveProfile = async () => {
     const { error } = await supabase
       .from("profiles")
-      .update({ username: editUsername, role: editRole })
+      .update({ username: editUsername }) // 👈 Am scos 'role' de aici
       .eq("email", user.email);
 
     if (!error) {
-      setProfileData({ ...profileData, username: editUsername, role: editRole });
+      setProfileData({ ...profileData, username: editUsername }); // 👈 Și de aici
       setIsEditing(false);
     } else {
       console.error("Eroare la salvare în DB:", error);
@@ -151,7 +149,7 @@ export default function ProfilePage() {
       <nav className="bg-white border-b border-gray-100 p-6">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
           <h1 onClick={() => router.push("/")} className="text-xl font-bold text-blue-600 tracking-tight cursor-pointer">
-            LICENTA NAME
+            XGen Course
           </h1>
           <div className="flex items-center gap-6">
             <button onClick={() => router.push("/")} className="text-sm font-medium text-gray-600 hover:text-blue-600 transition">
@@ -210,15 +208,6 @@ export default function ProfilePage() {
                     className="p-2 text-sm border border-gray-200 rounded-xl focus:outline-blue-500"
                     placeholder="Nume utilizator..."
                   />
-                  <select 
-                    value={editRole} 
-                    onChange={(e) => setEditRole(e.target.value)}
-                    className="p-2 text-sm border border-gray-200 rounded-xl focus:outline-blue-500 bg-white"
-                  >
-                    <option value="student">Student</option>
-                    <option value="profesor">Profesor</option>
-                    <option value="admin">Admin</option>
-                  </select>
                 </div>
               )}
               <p className="text-xs text-gray-400">

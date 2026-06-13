@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../../lib/supabase";
+import { supabase } from "../../../lib/supabase"; // Corectat calea relativă conform structurii de foldere
 
 export default function CreateCoursePage() {
   const router = useRouter();
@@ -89,6 +89,17 @@ export default function CreateCoursePage() {
 
       if (courseError) throw courseError;
 
+      // 🧱 CĂRĂMIDA NOUĂ: Alocăm automat rolul de PROFESOR pentru creatorul cursului
+      const { error: enrollError } = await supabase
+        .from("enrollments")
+        .insert([{
+          user_email: session.user.email,
+          course_id: courseData.id,
+          role: "teacher" // Devine profesor dedicat pentru acest curs
+        }]);
+
+      if (enrollError) throw enrollError;
+
       // 3. Pregătim elementele pentru inserare în masă (Bulk Insert), adăugând order_index-ul lor
       const elementsToInsert = elements.map((elem, index) => ({
         course_id: courseData.id,
@@ -105,13 +116,13 @@ export default function CreateCoursePage() {
 
       if (elementsError) throw elementsError;
 
-      alert("Cursul a fost creat cu succes tip puzzle!");
+      alert(`Cursul „${courseTitle}” a fost creat cu succes! Ești profesorul acestui curs.`);
       router.push("/"); // Ne întoarcem la pagina principală
     } catch (error) {
       console.error("Eroare la crearea cursului:", error);
       alert("Eroare la salvare: " + error.message);
     } finally {
-      setLoading(false);
+      loading && setLoading(false);
     }
   };
 
@@ -123,7 +134,7 @@ export default function CreateCoursePage() {
       <header className="bg-white border-b border-gray-200 p-4 sticky top-0 z-10 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-black">← Înapoi</button>
-          <h1 className="text-lg font-bold text-gray-900">Constructor de Curs (Modular)</h1>
+          <h1 className="text-lg font-bold text-gray-900">Constructor de Curs (XGen Course)</h1>
         </div>
         <button 
           onClick={handleSaveCourse} 
@@ -178,7 +189,7 @@ export default function CreateCoursePage() {
                     }`}
                   >
                     <div className="truncate">
-                      <span className="text-[10px] font-bold uppercase mr-2 px-2 py-0.5 rounded bg-white border text-gray-600 shadow-2xs">
+                      <span className="text-[10px] font-bold uppercase mr-2 px-2 py-0.5 rounded bg-white border text-gray-600 shadow-sm">
                         {idx + 1}. {elem.type}
                       </span>
                       <p className="text-sm font-semibold text-gray-800 truncate mt-1">{elem.title}</p>
@@ -215,7 +226,7 @@ export default function CreateCoursePage() {
           </div>
         </div>
 
-        {/* SPATIUL DE EDITARE PENTRU ELEMENTUL SELECTAT (CENTRU/DREAPTA) */}
+        {/* SPATIUL DE EDITARE PENTRU ELEMENTUL SELECTAT */}
         <div className="lg:col-span-8">
           {currentElement ? (
             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-6">

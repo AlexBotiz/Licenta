@@ -8,9 +8,10 @@ export default function CourseDetails({ params }) {
   const courseId = unwrappedParams.id;
 
   const [course, setCourse] = useState(null);
-  const [elements, setElements] = useState([]); // Schimbat din lessons în elements
+  const [elements, setElements] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [isEnrolled, setIsEnrolled] = useState(false);
+  const [isTeacher, setIsTeacher] = useState(false); // 🧱 STARE NOUĂ: Verificăm dacă e profesor
   const router = useRouter();
 
   useEffect(() => {
@@ -33,18 +34,22 @@ export default function CourseDetails({ params }) {
 
       if (courseData) setCourse(courseData);
 
-      // 3. Verificăm dacă userul este deja înscris
+      // 3. Verificăm înscrierea ȘI rolul utilizatorului în cadrul acestui curs
       const { data: enrollmentData } = await supabase
         .from('enrollments')
-        .select('id')
+        .select('id, role') // Am adăugat 'role' în select
         .eq('user_email', email)
         .eq('course_id', courseId);
 
       if (enrollmentData && enrollmentData.length > 0) {
         setIsEnrolled(true);
+        // Dacă rolul înregistrat este 'teacher', îi dăm drepturi de editare în interfață
+        if (enrollmentData[0].role === "teacher") {
+          setIsTeacher(true);
+        }
       }
 
-      // 4. Aducem elementele de puzzle legate de acest curs (înlocuit tabela veche 'lessons')
+      // 4. Aducem elementele de puzzle legate de acest curs
       try {
         const { data: elementsData } = await supabase
           .from('course_elements')
@@ -79,7 +84,8 @@ export default function CourseDetails({ params }) {
       .insert([
         { 
           user_email: session.user.email, 
-          course_id: courseId 
+          course_id: courseId,
+          role: 'student' // Înscrierea standard de pe buton oferă rol de student
         }
       ]);
 
@@ -103,9 +109,9 @@ export default function CourseDetails({ params }) {
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-black">
       
-      {/* HEADER SIMPLU CU BUTON DE IEȘIRE (X) */}
+      {/* HEADER SIMPLU */}
       <header className="p-6 flex justify-between items-center max-w-5xl mx-auto">
-        <h1 className="text-xl font-bold text-blue-600 tracking-tight cursor-pointer" onClick={() => router.push('/')}>LICENTA NAME</h1>
+        <h1 className="text-xl font-bold text-blue-600 tracking-tight cursor-pointer" onClick={() => router.push('/')}>XGen Course</h1>
         <button 
           onClick={() => router.back()} 
           className="w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:bg-gray-100 transition text-gray-600 font-bold"
@@ -123,7 +129,7 @@ export default function CourseDetails({ params }) {
           {/* SECȚIUNEA HERO */}
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
             <span className="text-xs font-bold bg-blue-50 text-blue-600 px-3 py-1 rounded-full uppercase tracking-wide">
-              {isEnrolled ? "Curs activ" : "Curs disponibil"}
+              {isTeacher ? "Mod Management" : isEnrolled ? "Curs activ" : "Curs disponibil"}
             </span>
             <h2 className="text-3xl font-bold text-gray-900 mt-4 mb-2">{course.title}</h2>
             <p className="text-gray-600 leading-relaxed text-base mb-6">
@@ -133,7 +139,7 @@ export default function CourseDetails({ params }) {
             <div className="flex items-center gap-4 text-sm text-gray-500 border-t border-gray-100 pt-6 mt-6">
               <div className="flex items-center gap-2">
                 <span className="bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center">👨‍🏫</span>
-                <span>Creat de: <strong className="text-gray-900">Profesor / Admin</strong></span>
+                <span>Creat de: <strong className="text-gray-900">{course.created_by || "Profesor / Admin"}</strong></span>
               </div>
               <span className="text-gray-300">|</span>
               <span>⏳ {elements.length > 0 ? `${elements.length * 45} minute estimate` : "0 minute"}</span>
@@ -159,7 +165,7 @@ export default function CourseDetails({ params }) {
             </ul>
           </div>
 
-          {/* LISTA DE ELEMENTE MODULARE (PROGRAMA CURSULUI) */}
+          {/* LISTA DE ELEMENTE MODULARE */}
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
             <h3 className="text-lg font-bold text-gray-900 mb-6">Programa cursului ({elements.length} module)</h3>
             
@@ -176,7 +182,7 @@ export default function CourseDetails({ params }) {
                       </span>
                       <span className="font-medium text-gray-800 text-sm">{elem.title}</span>
                     </div>
-                    {!isEnrolled && <span className="text-gray-400 text-xs bg-gray-200/60 px-2 py-1 rounded">🔒 Blocat</span>}
+                    {!isEnrolled && !isTeacher && <span className="text-gray-400 text-xs bg-gray-200/60 px-2 py-1 rounded">🔒 Blocat</span>}
                   </div>
                 ))}
               </div>
@@ -188,13 +194,14 @@ export default function CourseDetails({ params }) {
           </div>
         </div>
 
-        {/* COLOANA DREAPTĂ: CARDUL DE ÎNSCRIERE */}
+        {/* COLOANA DREAPTĂ: CARDUL DE ACTIUNE */}
         <div className="md:col-span-1">
           <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 sticky top-6">
             <h3 className="text-2xl font-bold text-gray-900 mb-1">Gratuit</h3>
             <p className="text-gray-400 text-xs mb-6">Acces complet și asistență AI nelimitată.</p>
             
-            {!isEnrolled ? (
+            {/* Buton principal dinamic Student / Profesor */}
+            {!isEnrolled && !isTeacher ? (
               <button 
                 onClick={handleEnroll}
                 className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition shadow-sm"
@@ -203,11 +210,20 @@ export default function CourseDetails({ params }) {
               </button>
             ) : (
               <button 
-                // TRIMITERE CĂTRE INTERFAȚA DE ÎNVĂȚARE (PLAYER)
                 onClick={() => router.push(`/course/${courseId}/learn`)}
                 className="w-full bg-green-500 text-white font-bold py-3.5 rounded-xl hover:bg-green-600 transition shadow-sm"
               >
-                Continuă cursul →
+                {isTeacher ? "Vizualizează Player-ul →" : "Continuă cursul →"}
+              </button>
+            )}
+
+            {/* ⚙️ BUTONUL SECRET AFIȘAT DOAR PENTRU PROFESOR */}
+            {isTeacher && (
+              <button 
+                onClick={() => router.push(`/course/${courseId}/edit`)}
+                className="w-full mt-3 border-2 border-blue-600 text-blue-600 hover:bg-blue-50 font-bold py-3 rounded-xl transition shadow-sm flex items-center justify-center gap-2"
+              >
+                🛠️ Editează Cursul
               </button>
             )}
 
