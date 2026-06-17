@@ -213,7 +213,7 @@ export default function CourseDetails({ params }) {
                 onClick={() => router.push(`/course/${courseId}/learn`)}
                 className="w-full bg-green-500 text-white font-bold py-3.5 rounded-xl hover:bg-green-600 transition shadow-sm"
               >
-                {isTeacher ? "Vizualizează Player-ul →" : "Continuă cursul →"}
+                {isTeacher ? "Vizualizează Cursul →" : "Continuă cursul →"}
               </button>
             )}
 

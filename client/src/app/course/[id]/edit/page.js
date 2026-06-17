@@ -271,7 +271,13 @@ useEffect(() => {
               placeholder="Descriere"
             />
 
-            {/* ✅ ACUM ESTE AICI: Butonul roșu de ștergere completă, vizibil mereu */}
+            <button
+            onClick={() => router.push(`/course/${courseId}/users`)}
+            className="w-full mt-4 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
+            >
+            👥 Gestionare Participanți & Roluri
+            </button>
+            {/* Butonul roșu de ștergere completă, vizibil mereu */}
             <button
               onClick={handleDeleteCourse}
               disabled={loading}
