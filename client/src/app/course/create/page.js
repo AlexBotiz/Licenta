@@ -3,6 +3,18 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase"; // Corectat calea relativă conform structurii de foldere
 
+// 🎥 FUNCȚIE HELPER: Extrage ID-ul video-ului și generează link-ul corect pentru Embed
+const getYouTubeEmbedUrl = (url) => {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  
+  if (match && match[2].length === 11) {
+    return `https://www.youtube.com/embed/${match[2]}`;
+  }
+  return null;
+};
+
 export default function CreateCoursePage() {
   const router = useRouter();
   
@@ -21,7 +33,8 @@ export default function CreateCoursePage() {
     let defaultContent = {};
     
     if (type === "lesson") {
-      defaultContent = { body: "Scrie conținutul lecției aici..." };
+      // 🌟 Am adăugat și videoUrl: "" implicit aici
+      defaultContent = { body: "Scrie conținutul lecției aici...", videoUrl: "" };
     } else if (type === "exercise") {
       defaultContent = { instruction: "Cerința exercițiului...", placeholderCode: "// Cod inițial aici" };
     } else if (type === "quiz") {
@@ -105,7 +118,7 @@ export default function CreateCoursePage() {
         course_id: courseData.id,
         type: elem.type,
         title: elem.title,
-        content: elem.content,
+        content: elem.content, // Aici se salvează automat și noul videoUrl
         order_index: index + 1 // Ordinea slide-urilor: 1, 2, 3...
       }));
 
@@ -258,16 +271,57 @@ export default function CreateCoursePage() {
               </div>
 
               {/* RENDER FORMA DINAMICA IN FUNCTIE DE TIPUL BLOCK-ULUI */}
+              {/* 🌟 NOU: Modificat secțiunea pentru lecție cu Input Video + Preview */}
               {currentElement.type === "lesson" && (
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 uppercase">Conținutul Lecției (Text/Markdown)</label>
-                  <textarea
-                    value={currentElement.content.body}
-                    onChange={(e) => updateSelectedElement({ 
-                      content: { ...currentElement.content, body: e.target.value } 
-                    })}
-                    className="w-full p-4 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 min-h-[300px] leading-relaxed font-mono bg-gray-50"
-                  />
+                <div className="space-y-5">
+                  {/* Câmp pentru link-ul YouTube */}
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase block">
+                      🎥 Videoclip Lecție (Opțional - Link YouTube)
+                    </label>
+                    <input 
+                      type="text"
+                      value={currentElement.content.videoUrl || ""}
+                      onChange={(e) => updateSelectedElement({ 
+                        content: { ...currentElement.content, videoUrl: e.target.value } 
+                      })}
+                      className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-white"
+                      placeholder="Lipește link-ul (ex: https://www.youtube.com/watch?v=...)"
+                    />
+                  </div>
+
+                  {/* Preview instant al video-ului în zona de configurare */}
+                  {currentElement.content.videoUrl && (
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-bold text-green-600 uppercase tracking-wider block">Preview Video Instant:</span>
+                      {getYouTubeEmbedUrl(currentElement.content.videoUrl) ? (
+                        <div className="aspect-video w-full rounded-xl overflow-hidden border border-gray-200 shadow-inner bg-black">
+                          <iframe
+                            className="w-full h-full"
+                            src={getYouTubeEmbedUrl(currentElement.content.videoUrl)}
+                            title="YouTube video player"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          ></iframe>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-red-500 font-medium">⚠️ Link-ul introdus nu este un link valid de YouTube.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Caseta de text normală a lecției */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-600 uppercase block">Conținutul Text al Lecției</label>
+                    <textarea
+                      value={currentElement.content.body}
+                      onChange={(e) => updateSelectedElement({ 
+                        content: { ...currentElement.content, body: e.target.value } 
+                      })}
+                      className="w-full p-4 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 min-h-[250px] leading-relaxed bg-gray-50"
+                      placeholder="Scrie explicațiile text aici..."
+                    />
+                  </div>
                 </div>
               )}
 

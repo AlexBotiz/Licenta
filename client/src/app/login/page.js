@@ -42,6 +42,30 @@ export default function Login() {
     }
   };
 
+  // 🌟 FUNCȚIA NOUĂ PENTRU RESETAREA PAROLEI
+  const handleForgotPassword = async () => {
+    // Verificăm dacă utilizatorul a completat mail-ul mai întâi
+    if (!email || !email.trim()) {
+      setError("Te rugăm să introduci adresa de email în câmpul de mai sus pentru a primi link-ul.");
+      return;
+    }
+
+    setError(null);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: "http://localhost:3000/reset-password",
+      });
+
+      if (error) throw error;
+
+      alert(`🎉 Un link de resetare a fost trimis cu succes pe adresa: ${email}. Verifică și folderul Spam!`);
+    } catch (err) {
+      console.error("Eroare la trimiterea emailului de resetare:", err);
+      setError(err.message);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white p-8 rounded-lg shadow-md w-96 border border-gray-100">
@@ -57,7 +81,7 @@ export default function Login() {
             <input
               type="email"
               required
-              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -67,10 +91,23 @@ export default function Login() {
             <input
               type="password"
               required
-              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            
+            {/* 🌟 BUTONUL NOU: Apare discret doar la Login, imediat sub input-ul de parolă */}
+            {isLogin && (
+              <div className="text-right mt-1">
+                <button
+                  type="button" // 💡 Important: Să fie de tip button ca să nu dea submit la formular când dai click pe el
+                  onClick={handleForgotPassword}
+                  className="text-xs text-blue-600 hover:underline bg-transparent border-none p-0 cursor-pointer font-medium"
+                >
+                  Mi-am uitat parola?
+                </button>
+              </div>
+            )}
           </div>
           
           <button 
@@ -83,7 +120,10 @@ export default function Login() {
 
         <div className="mt-6 text-center">
           <button 
-            onClick={() => setIsLogin(!isLogin)} 
+            onClick={() => {
+              setError(null); // Curățăm erorile vechi când schimbăm ecranele
+              setIsLogin(!isLogin);
+            }} 
             className="text-sm text-blue-600 hover:underline"
           >
             {isLogin ? "Nu ai cont? Creează unul" : "Ai deja cont? Loghează-te"}

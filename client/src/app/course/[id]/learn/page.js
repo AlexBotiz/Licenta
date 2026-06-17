@@ -3,6 +3,18 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../../lib/supabase";
 
+// 🎥 FUNCȚIE HELPER: Extrage ID-ul video-ului și generează link-ul corect pentru Embed în player
+const getYouTubeEmbedUrl = (url) => {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  
+  if (match && match[2].length === 11) {
+    return `https://www.youtube.com/embed/${match[2]}`;
+  }
+  return null;
+};
+
 export default function CoursePlayerPage({ params }) {
   const router = useRouter();
   
@@ -187,9 +199,26 @@ export default function CoursePlayerPage({ params }) {
                   </div>
 
                   {/* 1. RANDARE DACĂ ESTE LECȚIE */}
+                  {/* 🌟 NOU: Modificat pentru a suporta și Video Player pe lângă text */}
                   {currentElement.type === "lesson" && (
-                    <div className="text-gray-700 text-base leading-relaxed whitespace-pre-wrap pt-2">
-                      {currentElement.content.body}
+                    <div className="space-y-6 pt-2">
+                      {/* Player Video embedded de YouTube (apare doar dacă lecția are un link valid completat) */}
+                      {currentElement.content.videoUrl && getYouTubeEmbedUrl(currentElement.content.videoUrl) && (
+                        <div className="aspect-video w-full rounded-2xl overflow-hidden border border-gray-200 shadow-md bg-black">
+                          <iframe
+                            className="w-full h-full"
+                            src={getYouTubeEmbedUrl(currentElement.content.videoUrl)}
+                            title="YouTube video player"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          ></iframe>
+                        </div>
+                      )}
+
+                      {/* Conținutul text normal al lecției */}
+                      <div className="text-gray-700 text-base leading-relaxed whitespace-pre-wrap">
+                        {currentElement.content.body}
+                      </div>
                     </div>
                   )}
 

@@ -20,90 +20,91 @@ export default function EditCoursePage({ params }) {
   const [elements, setElements] = useState([]);
   const [selectedElementIndex, setSelectedElementIndex] = useState(null);
 
-// 1. Verificăm rolul (Admin global sau Profesorul cursului) și încărcăm datele
-useEffect(() => {
-  const checkAuthAndFetchData = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        alert("Trebuie să fii logat!");
-        router.push("/login");
-        return;
-      }
+  // 1. Verificăm rolul (Admin global sau Profesorul cursului) și încărcăm datele
+  useEffect(() => {
+    const checkAuthAndFetchData = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          alert("Trebuie să fii logat!");
+          router.push("/login");
+          return;
+        }
 
-      const userEmail = session.user.email;
+        const userEmail = session.user.email;
 
-      // PASUL A: Verificăm mai întâi dacă utilizatorul este ADMIN GLOBAL în tabela 'profiles'
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("email", userEmail)
-        .maybeSingle();
-
-      let hasAccess = false;
-
-      if (profile && profile.role === "admin") {
-        // Dacă este admin, primește acces direct (bypass la înscrieri)
-        hasAccess = true;
-      } else {
-        // PASUL B: Dacă NU este admin, verificăm dacă este profesorul înscris la acest curs
-        const { data: enrollment, error: enrollError } = await supabase
-          .from("enrollments")
+        // PASUL A: Verificăm mai întâi dacă utilizatorul este ADMIN GLOBAL în tabela 'profiles'
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
           .select("role")
-          .eq("course_id", courseId)
-          .eq("user_email", userEmail)
+          .eq("email", userEmail)
+          .maybeSingle();
+
+        let hasAccess = false;
+
+        if (profile && profile.role === "admin") {
+          // Dacă este admin, primește acces direct (bypass la înscrieri)
+          hasAccess = true;
+        } else {
+          // PASUL B: Dacă NU este admin, verificăm dacă este profesorul înscris la acest curs
+          const { data: enrollment, error: enrollError } = await supabase
+            .from("enrollments")
+            .select("role")
+            .eq("course_id", courseId)
+            .eq("user_email", userEmail)
+            .single();
+
+          if (enrollment && enrollment.role === "teacher") {
+            hasAccess = true;
+          }
+        }
+
+        // Dacă nu este nici Admin global, nici Profesorul cursului -> Îi blocăm accesul
+        if (!hasAccess) {
+          alert("Nu ai permisiunea de a edita sau șterge acest curs! Doar un administrator sau profesorul cursului o poate face.");
+          router.push(`/course/${courseId}`);
+          return;
+        }
+
+        setIsAuthorized(true);
+
+        // Dacă are acces, încărcăm detaliile cursului
+        const { data: course, error: courseError } = await supabase
+          .from("courses")
+          .select("title, description")
+          .eq("id", courseId)
           .single();
 
-        if (enrollment && enrollment.role === "teacher") {
-          hasAccess = true;
-        }
+        if (courseError) throw courseError;
+        setCourseTitle(course.title);
+        setCourseDescription(course.description);
+
+        // Încărcăm elementele de tip puzzle
+        const { data: courseElements, error: elementsError } = await supabase
+          .from("course_elements")
+          .select("id, type, title, content")
+          .eq("course_id", courseId)
+          .order("order_index", { ascending: true });
+
+        if (elementsError) throw elementsError;
+        setElements(courseElements || []);
+
+      } catch (err) {
+        console.error("Eroare la inițializare:", err);
+        alert("A apărut o eroare la încărcarea datelor.");
+      } finally {
+        setCheckingAuth(false);
       }
+    };
 
-      // Dacă nu este nici Admin global, nici Profesorul cursului -> Îi blocăm accesul
-      if (!hasAccess) {
-        alert("Nu ai permisiunea de a edita sau șterge acest curs! Doar un administrator sau profesorul cursului o poate face.");
-        router.push(`/course/${courseId}`);
-        return;
-      }
-
-      setIsAuthorized(true);
-
-      // Dacă are acces, încărcăm detaliile cursului
-      const { data: course, error: courseError } = await supabase
-        .from("courses")
-        .select("title, description")
-        .eq("id", courseId)
-        .single();
-
-      if (courseError) throw courseError;
-      setCourseTitle(course.title);
-      setCourseDescription(course.description);
-
-      // Încărcăm elementele de tip puzzle
-      const { data: courseElements, error: elementsError } = await supabase
-        .from("course_elements")
-        .select("id, type, title, content")
-        .eq("course_id", courseId)
-        .order("order_index", { ascending: true });
-
-      if (elementsError) throw elementsError;
-      setElements(courseElements || []);
-
-    } catch (err) {
-      console.error("Eroare la inițializare:", err);
-      alert("A apărut o eroare la încărcarea datelor.");
-    } finally {
-      setCheckingAuth(false);
-    }
-  };
-
-  checkAuthAndFetchData();
-}, [courseId, router]);
+    checkAuthAndFetchData();
+  }, [courseId, router]);
 
   // Funcții pentru manipularea puzzle-ului (la fel ca la creare)
   const handleAddElement = (type) => {
     let defaultContent = {};
-    if (type === "lesson") defaultContent = { body: "Conținut lecție nouă..." };
+    // 🌟 Mici ajustări: adăugăm videoUrl cu șir gol implicit pentru lecții
+    if (type === "lesson") defaultContent = { body: "Conținut lecție nouă...", videoUrl: "" };
     else if (type === "exercise") defaultContent = { instruction: "Cerință nouă...", placeholderCode: "// Cod" };
     else if (type === "quiz") defaultContent = { question: "Întrebare?", options: ["A", "B"], correctAnswerIndex: 0 };
 
@@ -182,7 +183,7 @@ useEffect(() => {
   // 3. Funcția de Ștergere Curs complet
   const handleDeleteCourse = async () => {
     const confirmDelete = confirm(
-      "⚠️ EȘTI SIGUR? Această acțiune va șterge definitiv cursul, toate lecțiile/exercițiile asociate și va dezînscrie toți studenții! Acțiunea este ireversibilă."
+      "⚠️ EȘTI SIGUR? Această acțiune va șterge definitiv cursul, toate lecțiile/exercițiile accesate și va dezînscrie toți studenții! Acțiunea este ireversibilă."
     );
     
     if (!confirmDelete) return;
@@ -239,7 +240,7 @@ useEffect(() => {
       {/* HEADER BAR */}
       <header className="bg-white border-b border-gray-200 p-4 sticky top-0 z-10 flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-black">← Renunță</button>
+          <button onClick={() => router.push(`/course/${courseId}`)} className="text-sm text-gray-500 hover:text-black">← Renunță</button>
           <h1 className="text-lg font-bold text-gray-900">Mode Editare: XGen Course</h1>
         </div>
         <button 
@@ -272,12 +273,11 @@ useEffect(() => {
             />
 
             <button
-            onClick={() => router.push(`/course/${courseId}/users`)}
-            className="w-full mt-4 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
+              onClick={() => router.push(`/course/${courseId}/users`)}
+              className="w-full mt-4 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
             >
-            👥 Gestionare Participanți & Roluri
+              👥 Gestionare Participanți & Roluri
             </button>
-            {/* Butonul roșu de ștergere completă, vizibil mereu */}
             <button
               onClick={handleDeleteCourse}
               disabled={loading}
@@ -349,13 +349,29 @@ useEffect(() => {
                 </button>
               </div>
 
+              {/* 🌟 NOU: Zonă de editare completă pentru Lecție cu suport Video */}
               {currentElement.type === "lesson" && (
-                <div className="space-y-2">
-                  <textarea
-                    value={currentElement.content.body}
-                    onChange={(e) => updateSelectedElement({ content: { ...currentElement.content, body: e.target.value } })}
-                    className="w-full p-4 border border-gray-200 rounded-xl text-sm min-h-[300px] font-mono bg-gray-50"
-                  />
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Link Video YouTube (Opțional)</label>
+                    <input 
+                      type="text"
+                      value={currentElement.content.videoUrl || ""}
+                      onChange={(e) => updateSelectedElement({ content: { ...currentElement.content, videoUrl: e.target.value } })}
+                      className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50 text-gray-800 font-medium"
+                      placeholder="Ex: https://www.youtube.com/watch?v=dQw4w9WgXcQ sau https://youtu.be/..."
+                    />
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Conținut Explicație Text</label>
+                    <textarea
+                      value={currentElement.content.body}
+                      onChange={(e) => updateSelectedElement({ content: { ...currentElement.content, body: e.target.value } })}
+                      className="w-full p-4 border border-gray-200 rounded-xl text-sm min-h-[250px] font-mono bg-gray-50 text-gray-800"
+                      placeholder="Scrie corpul lecției teoretice aici..."
+                    />
+                  </div>
                 </div>
               )}
 
