@@ -111,7 +111,7 @@ export default function CourseDetails({ params }) {
       
       {/* HEADER SIMPLU */}
       <header className="p-6 flex justify-between items-center max-w-5xl mx-auto">
-        <h1 className="text-xl font-bold text-blue-600 tracking-tight cursor-pointer" onClick={() => router.push('/')}>XGen Course</h1>
+        <h1 className="text-xl font-bold text-blue-600 tracking-tight cursor-pointer" onClick={() => router.push('/')}>NewGen Course</h1>
         <button 
           onClick={() => router.push('/')} 
           className="w-10 h-10 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:bg-gray-100 transition text-gray-600 font-bold"

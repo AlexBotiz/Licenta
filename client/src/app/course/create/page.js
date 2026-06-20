@@ -33,14 +33,18 @@ export default function CreateCoursePage() {
     let defaultContent = {};
     
     if (type === "lesson") {
-      // 🌟 Am adăugat și videoUrl: "" implicit aici
       defaultContent = { body: "Scrie conținutul lecției aici...", videoUrl: "" };
     } else if (type === "exercise") {
       defaultContent = { instruction: "Cerința exercițiului...", placeholderCode: "// Cod inițial aici" };
     } else if (type === "quiz") {
+      // 🌟 MODIFICAT: Opțiunile sunt acum obiecte cu text și explicație individuală
       defaultContent = {
         question: "Întrebare nouă?",
-        options: ["Varianta A", "Varianta B", "Varianta C"],
+        options: [
+          { text: "Varianta A", explanation: "" },
+          { text: "Varianta B", explanation: "" },
+          { text: "Varianta C", explanation: "" }
+        ],
         correctAnswerIndex: 0
       };
     }
@@ -102,13 +106,13 @@ export default function CreateCoursePage() {
 
       if (courseError) throw courseError;
 
-      // 🧱 CĂRĂMIDA NOUĂ: Alocăm automat rolul de PROFESOR pentru creatorul cursului
+      // 🧱 Alocăm automat rolul de PROFESOR pentru creatorul cursului
       const { error: enrollError } = await supabase
         .from("enrollments")
         .insert([{
           user_email: session.user.email,
           course_id: courseData.id,
-          role: "teacher" // Devine profesor dedicat pentru acest curs
+          role: "teacher" 
         }]);
 
       if (enrollError) throw enrollError;
@@ -118,8 +122,8 @@ export default function CreateCoursePage() {
         course_id: courseData.id,
         type: elem.type,
         title: elem.title,
-        content: elem.content, // Aici se salvează automat și noul videoUrl
-        order_index: index + 1 // Ordinea slide-urilor: 1, 2, 3...
+        content: elem.content, // Aici se salvează automat noua structură JSON a Quiz-ului cu tot cu explicații
+        order_index: index + 1 
       }));
 
       // 4. Inserăm toate elementele deodată în 'course_elements'
@@ -130,12 +134,12 @@ export default function CreateCoursePage() {
       if (elementsError) throw elementsError;
 
       alert(`Cursul „${courseTitle}” a fost creat cu succes! Ești profesorul acestui curs.`);
-      router.push("/"); // Ne întoarcem la pagina principală
+      router.push("/"); 
     } catch (error) {
       console.error("Eroare la crearea cursului:", error);
       alert("Eroare la salvare: " + error.message);
     } finally {
-      loading && setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -147,7 +151,7 @@ export default function CreateCoursePage() {
       <header className="bg-white border-b border-gray-200 p-4 sticky top-0 z-10 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-black">← Înapoi</button>
-          <h1 className="text-lg font-bold text-gray-900">Constructor de Curs (XGen Course)</h1>
+          <h1 className="text-lg font-bold text-gray-900">Constructor de Curs (NewGen Course)</h1>
         </div>
         <button 
           onClick={handleSaveCourse} 
@@ -162,7 +166,6 @@ export default function CreateCoursePage() {
         
         {/* DETALII GENERALE ȘI PANOU SLIDE-URI (STÂNGA) */}
         <div className="lg:col-span-4 space-y-6">
-          {/* Formular Date Generale Curs */}
           <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-3">
             <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">Informații Curs</h3>
             <input 
@@ -180,11 +183,9 @@ export default function CreateCoursePage() {
             />
           </div>
 
-          {/* Panoul cu Slide-uri/Elemente */}
           <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
             <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">Structură Curs ({elements.length})</h3>
             
-            {/* Lista cu bucățile de puzzle adăugate */}
             <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
               {elements.length === 0 ? (
                 <p className="text-xs text-gray-400 text-center py-6 border border-dashed border-gray-200 rounded-xl">
@@ -212,26 +213,16 @@ export default function CreateCoursePage() {
               )}
             </div>
 
-            {/* Butoanele de adăugare elemente noi */}
             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
-              <button 
-                onClick={() => handleAddElement("lesson")}
-                className="flex flex-col items-center justify-center p-3 bg-blue-50 hover:bg-blue-100 border border-blue-100 text-blue-700 rounded-xl transition text-center"
-              >
+              <button onClick={() => handleAddElement("lesson")} className="flex flex-col items-center justify-center p-3 bg-blue-50 hover:bg-blue-100 border border-blue-100 text-blue-700 rounded-xl transition text-center">
                 <span className="text-lg">📄</span>
                 <span className="text-[11px] font-bold mt-1">Lecție</span>
               </button>
-              <button 
-                onClick={() => handleAddElement("exercise")}
-                className="flex flex-col items-center justify-center p-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 text-purple-700 rounded-xl transition text-center"
-              >
+              <button onClick={() => handleAddElement("exercise")} className="flex flex-col items-center justify-center p-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 text-purple-700 rounded-xl transition text-center">
                 <span className="text-lg">💻</span>
                 <span className="text-[11px] font-bold mt-1">Exercițiu</span>
               </button>
-              <button 
-                onClick={() => handleAddElement("quiz")}
-                className="flex flex-col items-center justify-center p-3 bg-green-50 hover:bg-green-100 border border-green-100 text-green-700 rounded-xl transition text-center"
-              >
+              <button onClick={() => handleAddElement("quiz")} className="flex flex-col items-center justify-center p-3 bg-green-50 hover:bg-green-100 border border-green-100 text-green-700 rounded-xl transition text-center">
                 <span className="text-lg">❓</span>
                 <span className="text-[11px] font-bold mt-1">Quiz</span>
               </button>
@@ -244,7 +235,6 @@ export default function CreateCoursePage() {
           {currentElement ? (
             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-6">
               
-              {/* Header zonă editare */}
               <div className="border-b border-gray-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <span className="text-xs font-bold uppercase text-blue-600 px-2.5 py-1 bg-blue-50 rounded-lg">
@@ -270,15 +260,11 @@ export default function CreateCoursePage() {
                 </button>
               </div>
 
-              {/* RENDER FORMA DINAMICA IN FUNCTIE DE TIPUL BLOCK-ULUI */}
-              {/* 🌟 NOU: Modificat secțiunea pentru lecție cu Input Video + Preview */}
+              {/* RENDER LECȚIE */}
               {currentElement.type === "lesson" && (
                 <div className="space-y-5">
-                  {/* Câmp pentru link-ul YouTube */}
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase block">
-                      🎥 Videoclip Lecție (Opțional - Link YouTube)
-                    </label>
+                    <label className="text-xs font-bold text-gray-500 uppercase block">🎥 Videoclip Lecție (Opțional - Link YouTube)</label>
                     <input 
                       type="text"
                       value={currentElement.content.videoUrl || ""}
@@ -290,7 +276,6 @@ export default function CreateCoursePage() {
                     />
                   </div>
 
-                  {/* Preview instant al video-ului în zona de configurare */}
                   {currentElement.content.videoUrl && (
                     <div className="space-y-2">
                       <span className="text-[10px] font-bold text-green-600 uppercase tracking-wider block">Preview Video Instant:</span>
@@ -310,7 +295,6 @@ export default function CreateCoursePage() {
                     </div>
                   )}
 
-                  {/* Caseta de text normală a lecției */}
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-600 uppercase block">Conținutul Text al Lecției</label>
                     <textarea
@@ -325,6 +309,7 @@ export default function CreateCoursePage() {
                 </div>
               )}
 
+              {/* RENDER EXERCIȚIU */}
               {currentElement.type === "exercise" && (
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -351,6 +336,7 @@ export default function CreateCoursePage() {
                 </div>
               )}
 
+              {/* 🌟 RENDER QUIZ (MODIFICATĂ SECȚIUNEA PENTRU EXPLICATII) */}
               {currentElement.type === "quiz" && (
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -365,33 +351,56 @@ export default function CreateCoursePage() {
                     />
                   </div>
                   
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-600 uppercase">Opțiuni de Răspuns</label>
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-gray-600 uppercase block">Opțiuni de Răspuns și Explicații</label>
+                    
                     {currentElement.content.options.map((opt, oIdx) => (
-                      <div key={oIdx} className="flex items-center gap-2">
-                        <input 
-                          type="radio"
-                          name={`correct-${currentElement.id}`}
-                          checked={currentElement.content.correctAnswerIndex === oIdx}
-                          onChange={() => updateSelectedElement({
-                            content: { ...currentElement.content, correctAnswerIndex: oIdx }
-                          })}
-                        />
-                        <input 
-                          type="text"
-                          value={opt}
-                          onChange={(e) => {
-                            const newOpts = [...currentElement.content.options];
-                            newOpts[oIdx] = e.target.value;
-                            updateSelectedElement({
-                              content: { ...currentElement.content, options: newOpts }
-                            });
-                          }}
-                          className="w-full p-2 border border-gray-200 rounded-xl text-xs focus:outline-blue-500 bg-gray-50"
-                          placeholder={`Opțiunea ${oIdx + 1}`}
-                        />
+                      <div key={oIdx} className="p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-2 shadow-sm">
+                        {/* Randul 1: Radio Button + Textul Opțiunii */}
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="radio"
+                            name={`correct-${currentElement.id}`}
+                            checked={currentElement.content.correctAnswerIndex === oIdx}
+                            onChange={() => updateSelectedElement({
+                              content: { ...currentElement.content, correctAnswerIndex: oIdx }
+                            })}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <input 
+                            type="text"
+                            value={opt.text || ""}
+                            onChange={(e) => {
+                              const newOpts = [...currentElement.content.options];
+                              newOpts[oIdx] = { ...newOpts[oIdx], text: e.target.value };
+                              updateSelectedElement({
+                                content: { ...currentElement.content, options: newOpts }
+                              });
+                            }}
+                            className="w-full p-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-blue-500 bg-white"
+                            placeholder={`Opțiunea ${oIdx + 1}`}
+                          />
+                        </div>
+                        
+                        {/* Randul 2 (Nou): Input pentru Explicație */}
+                        <div className="pl-6">
+                          <input 
+                            type="text"
+                            value={opt.explanation || ""}
+                            onChange={(e) => {
+                              const newOpts = [...currentElement.content.options];
+                              newOpts[oIdx] = { ...newOpts[oIdx], explanation: e.target.value };
+                              updateSelectedElement({
+                                content: { ...currentElement.content, options: newOpts }
+                              });
+                            }}
+                            className="w-full p-2 border border-gray-200 rounded-lg text-[11px] focus:outline-purple-400 bg-white text-gray-600 italic"
+                            placeholder={`💡 Explicație dacă studentul alege această variantă... (opțional)`}
+                          />
+                        </div>
                       </div>
                     ))}
+                    
                     <p className="text-[11px] text-gray-400 mt-1">* Bifează cercul din stânga pentru răspunsul corect.</p>
                   </div>
                 </div>

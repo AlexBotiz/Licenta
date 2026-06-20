@@ -149,7 +149,7 @@ export default function ProfilePage() {
       <nav className="bg-white border-b border-gray-100 p-6">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
           <h1 onClick={() => router.push("/")} className="text-xl font-bold text-blue-600 tracking-tight cursor-pointer">
-            XGen Course
+            NewGen Course
           </h1>
           <div className="flex items-center gap-6">
             <button onClick={() => router.push("/")} className="text-sm font-medium text-gray-600 hover:text-blue-600 transition">

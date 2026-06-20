@@ -20,7 +20,7 @@ export default function EditCoursePage({ params }) {
   const [elements, setElements] = useState([]);
   const [selectedElementIndex, setSelectedElementIndex] = useState(null);
 
-  // 1. Verificăm rolul (Admin global sau Profesorul cursului) și încărcăm datele
+  // Verificăm rolul (Admin global sau Profesorul cursului) și încărcăm datele
   useEffect(() => {
     const checkAuthAndFetchData = async () => {
       try {
@@ -43,7 +43,6 @@ export default function EditCoursePage({ params }) {
         let hasAccess = false;
 
         if (profile && profile.role === "admin") {
-          // Dacă este admin, primește acces direct (bypass la înscrieri)
           hasAccess = true;
         } else {
           // PASUL B: Dacă NU este admin, verificăm dacă este profesorul înscris la acest curs
@@ -59,7 +58,6 @@ export default function EditCoursePage({ params }) {
           }
         }
 
-        // Dacă nu este nici Admin global, nici Profesorul cursului -> Îi blocăm accesul
         if (!hasAccess) {
           alert("Nu ai permisiunea de a edita sau șterge acest curs! Doar un administrator sau profesorul cursului o poate face.");
           router.push(`/course/${courseId}`);
@@ -68,7 +66,6 @@ export default function EditCoursePage({ params }) {
 
         setIsAuthorized(true);
 
-        // Dacă are acces, încărcăm detaliile cursului
         const { data: course, error: courseError } = await supabase
           .from("courses")
           .select("title, description")
@@ -100,13 +97,24 @@ export default function EditCoursePage({ params }) {
     checkAuthAndFetchData();
   }, [courseId, router]);
 
-  // Funcții pentru manipularea puzzle-ului (la fel ca la creare)
+  // Funcții pentru manipularea puzzle-ului
   const handleAddElement = (type) => {
     let defaultContent = {};
-    // 🌟 Mici ajustări: adăugăm videoUrl cu șir gol implicit pentru lecții
-    if (type === "lesson") defaultContent = { body: "Conținut lecție nouă...", videoUrl: "" };
-    else if (type === "exercise") defaultContent = { instruction: "Cerință nouă...", placeholderCode: "// Cod" };
-    else if (type === "quiz") defaultContent = { question: "Întrebare?", options: ["A", "B"], correctAnswerIndex: 0 };
+    if (type === "lesson") {
+      defaultContent = { body: "Conținut lecție nouă...", videoUrl: "" };
+    } else if (type === "exercise") {
+      defaultContent = { instruction: "Cerință nouă...", placeholderCode: "// Cod" };
+    } else if (type === "quiz") {
+      // 🌟 NOU: Inițializăm opțiunile direct ca structuri de obiecte { text, explanation }
+      defaultContent = { 
+        question: "Întrebare nouă?", 
+        options: [
+          { text: "Varianta A", explanation: "" }, 
+          { text: "Varianta B", explanation: "" }
+        ], 
+        correctAnswerIndex: 0 
+      };
+    }
 
     const newElement = {
       id: crypto.randomUUID(),
@@ -129,7 +137,7 @@ export default function EditCoursePage({ params }) {
     setElements(updatedElements);
   };
 
-  // 2. Salvarea modificărilor (Update curs + Re-sync elemente)
+  // Salvarea modificărilor (Update curs + Re-sync elemente)
   const handleSaveChanges = async () => {
     if (!courseTitle.trim()) return alert("Titlul nu poate fi gol.");
     if (elements.length === 0) return alert("Cursul trebuie să aibă cel puțin un element.");
@@ -137,7 +145,6 @@ export default function EditCoursePage({ params }) {
     try {
       setLoading(true);
 
-      // A. Actualizăm informațiile generale ale cursului
       const { error: courseUpdateError } = await supabase
         .from("courses")
         .update({ title: courseTitle, description: courseDescription })
@@ -145,7 +152,6 @@ export default function EditCoursePage({ params }) {
 
       if (courseUpdateError) throw courseUpdateError;
 
-      // B. Ștergem elementele vechi ca să le putem pune curat pe cele noi
       const { error: deleteError } = await supabase
         .from("course_elements")
         .delete()
@@ -153,7 +159,6 @@ export default function EditCoursePage({ params }) {
 
       if (deleteError) throw deleteError;
 
-      // C. Pregătim elementele noi cu noul order_index
       const elementsToInsert = elements.map((elem, index) => ({
         course_id: courseId,
         type: elem.type,
@@ -162,14 +167,13 @@ export default function EditCoursePage({ params }) {
         order_index: index + 1
       }));
 
-      // D. Inserăm noile elemente în masă
       const { error: insertError } = await supabase
         .from("course_elements")
         .insert(elementsToInsert);
 
       if (insertError) throw insertError;
 
-      alert("Cursul XGen a fost actualizat cu succes!");
+      alert("Cursul a fost actualizat cu succes!");
       router.push(`/course/${courseId}`);
 
     } catch (err) {
@@ -180,7 +184,7 @@ export default function EditCoursePage({ params }) {
     }
   };
 
-  // 3. Funcția de Ștergere Curs complet
+  // Funcția de Ștergere Curs complet
   const handleDeleteCourse = async () => {
     const confirmDelete = confirm(
       "⚠️ EȘTI SIGUR? Această acțiune va șterge definitiv cursul, toate lecțiile/exercițiile accesate și va dezînscrie toți studenții! Acțiunea este ireversibilă."
@@ -191,21 +195,18 @@ export default function EditCoursePage({ params }) {
     try {
       setLoading(true);
 
-      // Pasul A: Curățăm elementele de tip puzzle ale cursului
       const { error: elementsError } = await supabase
         .from("course_elements")
         .delete()
         .eq("course_id", courseId);
       if (elementsError) throw elementsError;
 
-      // Pasul B: Ștergem toate înscrierile legate de acest curs
       const { error: enrollError } = await supabase
         .from("enrollments")
         .delete()
         .eq("course_id", courseId);
       if (enrollError) throw enrollError;
 
-      // Pasul C: Ștergem cursul propriu-zis
       const { error: courseError } = await supabase
         .from("courses")
         .delete()
@@ -241,7 +242,7 @@ export default function EditCoursePage({ params }) {
       <header className="bg-white border-b border-gray-200 p-4 sticky top-0 z-10 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <button onClick={() => router.push(`/course/${courseId}`)} className="text-sm text-gray-500 hover:text-black">← Renunță</button>
-          <h1 className="text-lg font-bold text-gray-900">Mode Editare: XGen Course</h1>
+          <h1 className="text-lg font-bold text-gray-900">Mod Editare: NewGen Course</h1>
         </div>
         <button 
           onClick={handleSaveChanges} 
@@ -343,13 +344,13 @@ export default function EditCoursePage({ params }) {
                     setElements(filtered);
                     setSelectedElementIndex(filtered.length > 0 ? 0 : null);
                   }}
-                  className="text-xs font-semibold text-red-500 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-xl"
+                  className="text-xs font-semibold text-red-500 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-xl shrink-0"
                 >
                   Șterge Element
                 </button>
               </div>
 
-              {/* 🌟 NOU: Zonă de editare completă pentru Lecție cu suport Video */}
+              {/* 1. EDITARE LECȚIE */}
               {currentElement.type === "lesson" && (
                 <div className="space-y-4">
                   <div className="space-y-1">
@@ -359,7 +360,7 @@ export default function EditCoursePage({ params }) {
                       value={currentElement.content.videoUrl || ""}
                       onChange={(e) => updateSelectedElement({ content: { ...currentElement.content, videoUrl: e.target.value } })}
                       className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50 text-gray-800 font-medium"
-                      placeholder="Ex: https://www.youtube.com/watch?v=dQw4w9WgXcQ sau https://youtu.be/..."
+                      placeholder="Ex: https://www.youtube.com/watch?v=dQw4w9WgXcQ"
                     />
                   </div>
                   
@@ -375,6 +376,7 @@ export default function EditCoursePage({ params }) {
                 </div>
               )}
 
+              {/* 2. EDITARE EXERCIȚIU */}
               {currentElement.type === "exercise" && (
                 <div className="space-y-4">
                   <input 
@@ -392,35 +394,131 @@ export default function EditCoursePage({ params }) {
                 </div>
               )}
 
+              {/* 3. ❓ EDITARE QUIZ (MODIFICATĂ INTELIGENT) */}
               {currentElement.type === "quiz" && (
-                <div className="space-y-4">
-                  <input 
-                    type="text"
-                    value={currentElement.content.question}
-                    onChange={(e) => updateSelectedElement({ content: { ...currentElement.content, question: e.target.value } })}
-                    className="w-full p-3 border border-gray-200 rounded-xl text-sm bg-gray-50"
-                  />
-                  <div className="space-y-2">
-                    {currentElement.content.options.map((opt, oIdx) => (
-                      <div key={oIdx} className="flex items-center gap-2">
-                        <input 
-                          type="radio"
-                          name={`edit-correct-${currentElement.id}`}
-                          checked={currentElement.content.correctAnswerIndex === oIdx}
-                          onChange={() => updateSelectedElement({ content: { ...currentElement.content, correctAnswerIndex: oIdx } })}
-                        />
-                        <input 
-                          type="text"
-                          value={opt}
-                          onChange={(e) => {
-                            const newOpts = [...currentElement.content.options];
-                            newOpts[oIdx] = e.target.value;
-                            updateSelectedElement({ content: { ...currentElement.content, options: newOpts } });
-                          }}
-                          className="w-full p-2 border border-gray-200 rounded-xl text-xs bg-gray-50"
-                        />
-                      </div>
-                    ))}
+                <div className="space-y-5">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Întrebare Quiz</label>
+                    <input 
+                      type="text"
+                      value={currentElement.content.question}
+                      onChange={(e) => updateSelectedElement({ content: { ...currentElement.content, question: e.target.value } })}
+                      className="w-full p-3 border border-gray-200 rounded-xl text-sm bg-gray-50 font-semibold"
+                      placeholder="Întrebare"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Opțiuni de răspuns și Explicații</label>
+                    
+                    {currentElement.content.options.map((opt, oIdx) => {
+                      // Detecție automată tip de date (obiect sau string simplu de la cursurile vechi)
+                      const isObject = typeof opt === "object" && opt !== null;
+                      const optionText = isObject ? opt.text : opt;
+                      const optionExplanation = isObject ? opt.explanation || "" : "";
+
+                      return (
+                        <div key={oIdx} className="p-4 border border-gray-200 bg-gray-50/50 rounded-2xl space-y-3 relative">
+                          <div className="flex items-start gap-3">
+                            
+                            {/* Radio selector pentru varianta corectă */}
+                            <div className="pt-2">
+                              <input 
+                                type="radio"
+                                name={`edit-correct-${currentElement.id}`}
+                                checked={currentElement.content.correctAnswerIndex === oIdx}
+                                onChange={() => updateSelectedElement({ content: { ...currentElement.content, correctAnswerIndex: oIdx } })}
+                                className="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                title="Marchează ca răspuns corect"
+                              />
+                            </div>
+
+                            {/* Câmpurile de input text pentru Opțiune și Explicație */}
+                            <div className="flex-1 space-y-3">
+                              <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
+                                  Opțiunea {oIdx + 1} {currentElement.content.correctAnswerIndex === oIdx && <span className="text-green-600 font-bold">(Răspuns Corect)</span>}
+                                </label>
+                                <input 
+                                  type="text"
+                                  value={optionText}
+                                  onChange={(e) => {
+                                    const newOpts = [...currentElement.content.options];
+                                    // Împachetează direct sub formă de obiect, asigurând migrarea datelor vechi
+                                    newOpts[oIdx] = { text: e.target.value, explanation: optionExplanation };
+                                    updateSelectedElement({ content: { ...currentElement.content, options: newOpts } });
+                                  }}
+                                  className="w-full p-2.5 border border-gray-200 rounded-xl text-sm bg-white font-medium"
+                                  placeholder="Textul opțiunii..."
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-bold text-amber-600 uppercase block mb-1">
+                                  Explicație personalizată student (La selecție)
+                                </label>
+                                <input 
+                                  type="text"
+                                  value={optionExplanation}
+                                  onChange={(e) => {
+                                    const newOpts = [...currentElement.content.options];
+                                    // Actualizează sau inițializează obiectul cu noua explicație
+                                    newOpts[oIdx] = { text: optionText, explanation: e.target.value };
+                                    updateSelectedElement({ content: { ...currentElement.content, options: newOpts } });
+                                  }}
+                                  className="w-full p-2.5 border border-amber-200 bg-amber-50/10 rounded-xl text-xs text-gray-700 italic focus:outline-amber-500 focus:bg-white"
+                                  placeholder="Ex: Corect! Functia map returneaza un nou array. / Greșit, deoarece..."
+                                />
+                              </div>
+                            </div>
+
+                            {/* Buton eliminare opțiune individuală */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (currentElement.content.options.length <= 2) {
+                                  alert("Un quiz trebuie să aibă cel puțin 2 variante de răspuns!");
+                                  return;
+                                }
+                                const newOpts = currentElement.content.options.filter((_, idx) => idx !== oIdx);
+                                
+                                // Recalibrăm indexul pentru răspunsul corect dacă s-a modificat ordinea
+                                let newCorrectIdx = currentElement.content.correctAnswerIndex;
+                                if (newCorrectIdx === oIdx) newCorrectIdx = 0;
+                                else if (newCorrectIdx > oIdx) newCorrectIdx--;
+
+                                updateSelectedElement({ 
+                                  content: { 
+                                    ...currentElement.content, 
+                                    options: newOpts,
+                                    correctAnswerIndex: newCorrectIdx
+                                  } 
+                                });
+                              }}
+                              className="text-gray-400 hover:text-red-500 font-bold p-1 bg-white border border-gray-200 rounded-lg text-xs transition"
+                              title="Șterge varianta"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Adăugare opțiune nouă în listă */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newOpts = [
+                          ...currentElement.content.options, 
+                          { text: `Opțiunea ${currentElement.content.options.length + 1}`, explanation: "" }
+                        ];
+                        updateSelectedElement({ content: { ...currentElement.content, options: newOpts } });
+                      }}
+                      className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 border border-dashed border-gray-300 rounded-xl text-xs font-bold transition"
+                    >
+                      + Adaugă Opțiune Nouă
+                    </button>
                   </div>
                 </div>
               )}

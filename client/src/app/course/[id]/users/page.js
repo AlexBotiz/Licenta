@@ -94,11 +94,21 @@ export default function CourseUsersPage({ params }) {
     }
   };
 
-  // 2. Schimbă rolul (Student ⇄ Profesor/Asistent)
-  const handleToggleRole = async (enrollmentId, currentRole) => {
+  // 2. Schimbă rolul (Student ⇄ Profesor/Asistent) cu POPUP de confirmare
+  const handleToggleRole = async (enrollmentId, currentRole, email) => {
+    const nextRole = currentRole === "student" ? "teacher" : "student";
+    
+    // 🌟 Generăm un mesaj personalizat în funcție de acțiune
+    const confirmMessage = currentRole === "student"
+      ? `Sigur vrei să îl promovezi pe ${email} la rolul de Profesor? Va avea drepturi depline de editare asupra cursului.`
+      : `Sigur vrei să îi retragi drepturile de profesor lui ${email}? Va deveni un simplu Student și nu va mai putea modifica nimic.`;
+
+    // Afișăm popup-ul de confirmare
+    const confirmAction = confirm(confirmMessage);
+    if (!confirmAction) return; // Dacă apasă „Cancel”, oprim execuția aici
+
     try {
       setLoadingAction(true);
-      const nextRole = currentRole === "student" ? "teacher" : "student";
 
       const { error } = await supabase
         .from("enrollments")
@@ -200,7 +210,8 @@ export default function CourseUsersPage({ params }) {
                   {/* Butoane Acțiuni */}
                   <div className="flex items-center gap-2 self-end sm:self-auto">
                     <button
-                      onClick={() => handleToggleRole(person.id, person.role)}
+                      // 🌟 MODIFICAT: Transmitem și email-ul ca al treilea parametru pentru textul din popup
+                      onClick={() => handleToggleRole(person.id, person.role, person.user_email)}
                       disabled={loadingAction}
                       className={`text-xs font-bold px-3 py-2 rounded-xl border transition disabled:opacity-50 ${
                         person.role === "teacher"
@@ -227,7 +238,7 @@ export default function CourseUsersPage({ params }) {
           ) : (
             <div className="py-12 text-center text-gray-400 space-y-2">
               <span className="text-3xl">👥</span>
-              <p className="text-sm font-medium">Momentan nu s-a înscris niciun utilizator la acest curs.</p>
+              <p className="text-sm font-semibold">Momentan nu s-a înscris niciun utilizator la acest curs.</p>
             </div>
           )}
         </div>

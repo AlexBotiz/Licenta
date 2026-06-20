@@ -72,7 +72,7 @@ export default function ResetPasswordPage() {
           <span className="text-3xl">🔒</span>
           <h1 className="text-xl font-bold text-gray-900">Setează o parolă nouă</h1>
           <p className="text-xs text-gray-400 max-w-xs mx-auto">
-            Alege o parolă sigură pe care să o folosești de acum înainte pentru a te autentifica în contul tău XGen.
+            Alege o parolă sigură pe care să o folosești de acum înainte pentru a te autentifica în contul tău NewGen.
           </p>
         </div>
 

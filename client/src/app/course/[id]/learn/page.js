@@ -66,7 +66,7 @@ export default function CoursePlayerPage({ params }) {
       } catch (err) {
         console.error("Eroare la încărcarea cursului:", err);
       } finally {
-        setLoading(false);
+        loading && setLoading(false);
       }
     }
 
@@ -107,7 +107,6 @@ export default function CoursePlayerPage({ params }) {
       alert("Scrie codul înainte de a-l verifica!");
       return;
     }
-    // O validare simplă, de exemplu dacă studentul a scris ceva cod valid
     setExerciseFeedback("Codul a fost trimis cu succes! Compilarea a rulat fără erori.");
   };
 
@@ -125,6 +124,15 @@ export default function CoursePlayerPage({ params }) {
   }
 
   const currentElement = elements[currentStepIndex];
+
+  // Helper pentru a extrage explicația opțiunii selectate în mod sigur
+  const getSelectedOptionExplanation = () => {
+    if (quizSelectedOption === null || !currentElement?.content?.options) return null;
+    const selectedOpt = currentElement.content.options[parseInt(quizSelectedOption)];
+    return selectedOpt && typeof selectedOpt === "object" ? selectedOpt.explanation : null;
+  };
+
+  const currentExplanation = getSelectedOptionExplanation();
 
   return (
     <div className="min-h-screen bg-gray-50 text-black font-sans flex flex-col h-screen">
@@ -145,10 +153,10 @@ export default function CoursePlayerPage({ params }) {
         </div>
       </header>
 
-      {/* REZOLVARE LAYOUT BODY: SIDEBAR + SPATIU CENTRAL */}
+      {/* BODY LAYOUT */}
       <div className="flex flex-1 overflow-hidden">
         
-        {/* SIDEBAR STÂNGA (Afișează structura tip puzzle) */}
+        {/* SIDEBAR STÂNGA */}
         <aside className="w-80 bg-white border-r border-gray-200 overflow-y-auto hidden md:block p-4 space-y-3">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-2">Conținut Curs</h3>
           <div className="space-y-1">
@@ -176,7 +184,7 @@ export default function CoursePlayerPage({ params }) {
           </div>
         </aside>
 
-        {/* SPATIUL CENTRAL (Afișarea slide-ului activ) */}
+        {/* SPATIUL CENTRAL */}
         <main className="flex-1 overflow-y-auto bg-gray-50 p-6 md:p-12 flex justify-center">
           <div className="max-w-3xl w-full">
             
@@ -189,7 +197,6 @@ export default function CoursePlayerPage({ params }) {
             ) : (
               <div className="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm space-y-6 min-h-[450px] flex flex-col justify-between">
                 
-                {/* Zona superioară: Titlu element */}
                 <div className="space-y-4 flex-1">
                   <div className="border-b border-gray-100 pb-4">
                     <span className="text-[10px] font-bold uppercase bg-gray-100 px-2.5 py-1 rounded-md text-gray-600 border border-gray-200">
@@ -198,11 +205,9 @@ export default function CoursePlayerPage({ params }) {
                     <h2 className="text-2xl font-bold text-gray-900 mt-2">{currentElement.title}</h2>
                   </div>
 
-                  {/* 1. RANDARE DACĂ ESTE LECȚIE */}
-                  {/* 🌟 NOU: Modificat pentru a suporta și Video Player pe lângă text */}
+                  {/* 1. RANDARE LECȚIE */}
                   {currentElement.type === "lesson" && (
                     <div className="space-y-6 pt-2">
-                      {/* Player Video embedded de YouTube (apare doar dacă lecția are un link valid completat) */}
                       {currentElement.content.videoUrl && getYouTubeEmbedUrl(currentElement.content.videoUrl) && (
                         <div className="aspect-video w-full rounded-2xl overflow-hidden border border-gray-200 shadow-md bg-black">
                           <iframe
@@ -214,15 +219,13 @@ export default function CoursePlayerPage({ params }) {
                           ></iframe>
                         </div>
                       )}
-
-                      {/* Conținutul text normal al lecției */}
                       <div className="text-gray-700 text-base leading-relaxed whitespace-pre-wrap">
                         {currentElement.content.body}
                       </div>
                     </div>
                   )}
 
-                  {/* 2. RANDARE DACĂ ESTE EXERCIȚIU */}
+                  {/* 2. RANDARE EXERCIȚIU */}
                   {currentElement.type === "exercise" && (
                     <div className="space-y-4 pt-2">
                       <div className="bg-purple-50 border border-purple-100 p-4 rounded-xl text-sm text-purple-900 font-medium">
@@ -251,32 +254,37 @@ export default function CoursePlayerPage({ params }) {
                     </div>
                   )}
 
-                  {/* 3. RANDARE DACĂ ESTE QUIZ */}
+                  {/* 3. ❓ RANDARE QUIZ (MODIFICATĂ) */}
                   {currentElement.type === "quiz" && (
                     <div className="space-y-5 pt-2">
                       <p className="text-lg font-bold text-gray-800">{currentElement.content.question}</p>
                       
                       <div className="space-y-2">
-                        {currentElement.content.options.map((option, oIdx) => (
-                          <label 
-                            key={oIdx}
-                            className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition ${
-                              quizSelectedOption === String(oIdx)
-                                ? "border-blue-500 bg-blue-50/40"
-                                : "border-gray-200 bg-gray-50 hover:bg-gray-100"
-                            }`}
-                          >
-                            <input 
-                              type="radio" 
-                              name="quiz-options" 
-                              value={oIdx}
-                              checked={quizSelectedOption === String(oIdx)}
-                              onChange={(e) => setQuizSelectedOption(e.target.value)}
-                              className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="text-sm font-semibold text-gray-800">{option}</span>
-                          </label>
-                        ))}
+                        {currentElement.content.options.map((option, oIdx) => {
+                          // Suportă ambele cazuri: noua structură {text} sau cea veche string simplu
+                          const optionText = typeof option === "object" ? option.text : option;
+                          
+                          return (
+                            <label 
+                              key={oIdx}
+                              className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition ${
+                                quizSelectedOption === String(oIdx)
+                                  ? "border-blue-500 bg-blue-50/40"
+                                  : "border-gray-200 bg-gray-50 hover:bg-gray-100"
+                              }`}
+                            >
+                              <input 
+                                type="radio" 
+                                name="quiz-options" 
+                                value={oIdx}
+                                checked={quizSelectedOption === String(oIdx)}
+                                onChange={(e) => setQuizSelectedOption(e.target.value)}
+                                className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="text-sm font-semibold text-gray-800">{optionText}</span>
+                            </label>
+                          );
+                        })}
                       </div>
 
                       <button 
@@ -286,14 +294,30 @@ export default function CoursePlayerPage({ params }) {
                         Trimite Răspunsul
                       </button>
 
+                      {/* FEEDBACK CU INJECTARE DE EXPLICAȚIE DINAMICĂ */}
                       {quizFeedback === "corect" && (
-                        <div className="p-4 bg-green-50 border border-green-200 text-green-800 text-sm rounded-xl font-bold flex items-center gap-2">
-                          🎉 Excelent! Răspunsul tău este corect.
+                        <div className="p-4 bg-green-50 border border-green-200 text-green-800 text-sm rounded-xl font-bold flex flex-col gap-1.5 shadow-xs">
+                          <div className="flex items-center gap-2">
+                            <span>🎉</span> Excelent! Răspunsul tău este corect.
+                          </div>
+                          {currentExplanation && (
+                            <div className="text-xs font-normal text-green-700 border-t border-green-200/60 pt-2 mt-1 italic">
+                              <strong>Explicație:</strong> {currentExplanation}
+                            </div>
+                          )}
                         </div>
                       )}
+
                       {quizFeedback === "incorect" && (
-                        <div className="p-4 bg-red-50 border border-red-200 text-red-800 text-sm rounded-xl font-bold flex items-center gap-2">
-                          ❌ Răspuns greșit. Mai încearcă o dată!
+                        <div className="p-4 bg-red-50 border border-red-200 text-red-800 text-sm rounded-xl font-bold flex flex-col gap-1.5 shadow-xs">
+                          <div className="flex items-center gap-2">
+                            <span>❌</span> Răspuns greșit. Mai încearcă o dată!
+                          </div>
+                          {currentExplanation && (
+                            <div className="text-xs font-normal text-red-700 border-t border-red-200/60 pt-2 mt-1 italic">
+                              <strong>De ce ai greșit:</strong> {currentExplanation}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
