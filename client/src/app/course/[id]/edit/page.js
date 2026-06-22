@@ -103,9 +103,14 @@ export default function EditCoursePage({ params }) {
     if (type === "lesson") {
       defaultContent = { body: "Conținut lecție nouă...", videoUrl: "" };
     } else if (type === "exercise") {
-      defaultContent = { instruction: "Cerință nouă...", placeholderCode: "// Cod" };
+      // 🌟 MODIFICAT: Structură completă pentru rulare și teste Judge0
+      defaultContent = { 
+        instruction: "Cerință nouă...", 
+        placeholderCode: "// Scrie codul de pornire pentru student aici...\n",
+        solutionCode: "// Soluția corectă a profesorului (pentru teste)...\n",
+        expectedOutput: "Rezultatul exact așteptat în consolă"
+      };
     } else if (type === "quiz") {
-      // 🌟 NOU: Inițializăm opțiunile direct ca structuri de obiecte { text, explanation }
       defaultContent = { 
         question: "Întrebare nouă?", 
         options: [
@@ -376,25 +381,57 @@ export default function EditCoursePage({ params }) {
                 </div>
               )}
 
-              {/* 2. EDITARE EXERCIȚIU */}
+              {/* 2. 💻 EDITARE EXERCIȚIU (MODIFICATĂ COMPLET) */}
               {currentElement.type === "exercise" && (
-                <div className="space-y-4">
-                  <input 
-                    type="text"
-                    value={currentElement.content.instruction}
-                    onChange={(e) => updateSelectedElement({ content: { ...currentElement.content, instruction: e.target.value } })}
-                    className="w-full p-3 border border-gray-200 rounded-xl text-sm bg-gray-50"
-                    placeholder="Cerință"
-                  />
-                  <textarea
-                    value={currentElement.content.placeholderCode}
-                    onChange={(e) => updateSelectedElement({ content: { ...currentElement.content, placeholderCode: e.target.value } })}
-                    className="w-full p-4 border border-gray-200 rounded-xl text-sm min-h-[150px] font-mono bg-gray-900 text-green-400"
-                  />
+                <div className="space-y-5">
+                  {/* Cerința */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Cerință Exercițiu</label>
+                    <input 
+                      type="text"
+                      value={currentElement.content.instruction || ""}
+                      onChange={(e) => updateSelectedElement({ content: { ...currentElement.content, instruction: e.target.value } })}
+                      className="w-full p-3 border border-gray-200 rounded-xl text-sm bg-gray-50 font-semibold text-gray-800"
+                      placeholder="Ex: Scrieți o funcție care afișează mesajul primit ca parametru."
+                    />
+                  </div>
+
+                  {/* Placeholder Code */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-purple-600 uppercase tracking-wider">Codul de pornire (Ce vede studentul în editor)</label>
+                    <textarea
+                      value={currentElement.content.placeholderCode || ""}
+                      onChange={(e) => updateSelectedElement({ content: { ...currentElement.content, placeholderCode: e.target.value } })}
+                      className="w-full p-4 border border-gray-200 rounded-xl text-sm min-h-[120px] font-mono bg-gray-900 text-green-400 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                      placeholder="// Scrie scheletul de cod aici..."
+                    />
+                  </div>
+
+                  {/* Solution Code */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-blue-600 uppercase tracking-wider">Codul Soluției Completa (Codul tău de referință)</label>
+                    <textarea
+                      value={currentElement.content.solutionCode || ""}
+                      onChange={(e) => updateSelectedElement({ content: { ...currentElement.content, solutionCode: e.target.value } })}
+                      className="w-full p-4 border border-gray-200 rounded-xl text-sm min-h-[120px] font-mono bg-gray-900 text-blue-400 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      placeholder="// Scrie rezolvarea completă a exercițiului..."
+                    />
+                  </div>
+
+                  {/* Expected Output */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-amber-600 uppercase tracking-wider">Output-ul așteptat la teste (Ce trebuie să returneze Judge0)</label>
+                    <textarea
+                      value={currentElement.content.expectedOutput || ""}
+                      onChange={(e) => updateSelectedElement({ content: { ...currentElement.content, expectedOutput: e.target.value } })}
+                      className="w-full p-3 border border-amber-200 rounded-xl text-sm font-mono bg-amber-50/20 text-gray-900 focus:outline-amber-500 min-h-[80px]"
+                      placeholder="Ex: Salut, licenta!"
+                    />
+                  </div>
                 </div>
               )}
 
-              {/* 3. ❓ EDITARE QUIZ (MODIFICATĂ INTELIGENT) */}
+              {/* 3. ❓ EDITARE QUIZ */}
               {currentElement.type === "quiz" && (
                 <div className="space-y-5">
                   <div className="space-y-1">
@@ -412,7 +449,6 @@ export default function EditCoursePage({ params }) {
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Opțiuni de răspuns și Explicații</label>
                     
                     {currentElement.content.options.map((opt, oIdx) => {
-                      // Detecție automată tip de date (obiect sau string simplu de la cursurile vechi)
                       const isObject = typeof opt === "object" && opt !== null;
                       const optionText = isObject ? opt.text : opt;
                       const optionExplanation = isObject ? opt.explanation || "" : "";
@@ -444,7 +480,6 @@ export default function EditCoursePage({ params }) {
                                   value={optionText}
                                   onChange={(e) => {
                                     const newOpts = [...currentElement.content.options];
-                                    // Împachetează direct sub formă de obiect, asigurând migrarea datelor vechi
                                     newOpts[oIdx] = { text: e.target.value, explanation: optionExplanation };
                                     updateSelectedElement({ content: { ...currentElement.content, options: newOpts } });
                                   }}
@@ -462,7 +497,6 @@ export default function EditCoursePage({ params }) {
                                   value={optionExplanation}
                                   onChange={(e) => {
                                     const newOpts = [...currentElement.content.options];
-                                    // Actualizează sau inițializează obiectul cu noua explicație
                                     newOpts[oIdx] = { text: optionText, explanation: e.target.value };
                                     updateSelectedElement({ content: { ...currentElement.content, options: newOpts } });
                                   }}
@@ -482,7 +516,6 @@ export default function EditCoursePage({ params }) {
                                 }
                                 const newOpts = currentElement.content.options.filter((_, idx) => idx !== oIdx);
                                 
-                                // Recalibrăm indexul pentru răspunsul corect dacă s-a modificat ordinea
                                 let newCorrectIdx = currentElement.content.correctAnswerIndex;
                                 if (newCorrectIdx === oIdx) newCorrectIdx = 0;
                                 else if (newCorrectIdx > oIdx) newCorrectIdx--;

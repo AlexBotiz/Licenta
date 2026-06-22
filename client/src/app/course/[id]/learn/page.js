@@ -3,12 +3,11 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../../lib/supabase";
 
-// 🎥 FUNCȚIE HELPER: Extrage ID-ul video-ului și generează link-ul corect pentru Embed în player
+// 🎥 FUNCȚIE HELPER
 const getYouTubeEmbedUrl = (url) => {
   if (!url) return null;
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
   const match = url.match(regExp);
-  
   if (match && match[2].length === 11) {
     return `https://www.youtube.com/embed/${match[2]}`;
   }
@@ -17,8 +16,6 @@ const getYouTubeEmbedUrl = (url) => {
 
 export default function CoursePlayerPage({ params }) {
   const router = useRouter();
-  
-  // Rezolvare eroare Next.js 15+: despachetarea params ca Promise
   const unwrappedParams = React.use(params);
   const courseId = unwrappedParams.id;
 
@@ -27,18 +24,22 @@ export default function CoursePlayerPage({ params }) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Stări pentru interacțiunea studentului cu exercițiile și quiz-urile
+  // Stări pentru interacțiune
   const [quizSelectedOption, setQuizSelectedOption] = useState(null);
-  const [quizFeedback, setQuizFeedback] = useState(null); // 'corect' sau 'incorect'
+  const [quizFeedback, setQuizFeedback] = useState(null);
   const [exerciseCode, setExerciseCode] = useState("");
-  const [exerciseFeedback, setExerciseFeedback] = useState(null);
+  const [exerciseFeedback, setExerciseFeedback] = useState(null); // Va fi { statusId, text, isCorrect }
+  
+  // Stare pentru animația de încărcare la rularea codului
+  const [isCompiling, setIsCompiling] = useState(false);
+
+  // Dicționar istoric pași
+  const [savedAnswers, setSavedAnswers] = useState({});
 
   useEffect(() => {
     async function loadCourseAndElements() {
       try {
         setLoading(true);
-
-        // 1. Luăm datele generale ale cursului
         const { data: courseData, error: courseError } = await supabase
           .from("courses")
           .select("*")
@@ -48,7 +49,6 @@ export default function CoursePlayerPage({ params }) {
         if (courseError) throw courseError;
         setCourse(courseData);
 
-        // 2. Luăm toate elementele (slide-urile) în ordinea corectă (order_index)
         const { data: elementsData, error: elementsError } = await supabase
           .from("course_elements")
           .select("*")
@@ -58,33 +58,76 @@ export default function CoursePlayerPage({ params }) {
         if (elementsError) throw elementsError;
         setElements(elementsData || []);
 
-        // Inițializăm codul pentru exercițiu dacă primul element e exercițiu
         if (elementsData && elementsData[0]?.type === "exercise") {
           setExerciseCode(elementsData[0].content.placeholderCode || "");
         }
-
       } catch (err) {
         console.error("Eroare la încărcarea cursului:", err);
       } finally {
-        loading && setLoading(false);
+        setLoading(false);
       }
     }
-
-    if (courseId) {
-      loadCourseAndElements();
-    }
+    if (courseId) loadCourseAndElements();
   }, [courseId]);
 
-  // Resetăm feedback-ul când studentul schimbă slide-ul
   useEffect(() => {
-    setQuizSelectedOption(null);
-    setQuizFeedback(null);
-    setExerciseFeedback(null);
-    
-    if (elements[currentStepIndex]?.type === "exercise") {
-      setExerciseCode(elements[currentStepIndex].content.placeholderCode || "");
+    const currentElem = elements[currentStepIndex];
+    if (!currentElem) return;
+
+    const saved = savedAnswers[currentElem.id];
+
+    if (currentElem.type === "exercise") {
+      setExerciseCode(saved?.code ?? (currentElem.content.placeholderCode || ""));
+      setExerciseFeedback(saved?.exerciseFeedback ?? null);
+      setQuizSelectedOption(null);
+      setQuizFeedback(null);
+    } else if (currentElem.type === "quiz") {
+      setQuizSelectedOption(saved?.quizOption ?? null);
+      setQuizFeedback(saved?.quizFeedback ?? null);
+      setExerciseCode("");
+      setExerciseFeedback(null);
+    } else {
+      setQuizSelectedOption(null);
+      setQuizFeedback(null);
+      setExerciseCode("");
+      setExerciseFeedback(null);
     }
   }, [currentStepIndex, elements]);
+
+  // Funcție helper care verifică dacă un pas anume este completat cu succes
+  const isStepCompleted = (idx) => {
+    const elem = elements[idx];
+    if (!elem) return false;
+    if (elem.type === "lesson") return true; // Lecțiile se consideră completate la citire
+
+    const saved = savedAnswers[elem.id];
+    
+    if (elem.type === "quiz") {
+      return quizFeedback === "corect" || saved?.quizFeedback === "corect";
+    }
+    
+    if (elem.type === "exercise") {
+      return exerciseFeedback?.isCorrect === true || saved?.exerciseFeedback?.isCorrect === true;
+    }
+    
+    return false;
+  };
+
+  // Validare navigare din Sidebar (nu lasă studentul să sară pași necompletați)
+  const handleSidebarStepClick = (targetIdx) => {
+    if (targetIdx <= currentStepIndex) {
+      setCurrentStepIndex(targetIdx);
+      return;
+    }
+    
+    for (let i = currentStepIndex; i < targetIdx; i++) {
+      if (!isStepCompleted(i)) {
+        alert("Trebuie să finalizezi corect exercițiile sau quiz-urile din urmă înainte de a trece mai departe!");
+        return;
+      }
+    }
+    setCurrentStepIndex(targetIdx);
+  };
 
   // Validare Quiz
   const handleVerifyQuiz = () => {
@@ -94,20 +137,96 @@ export default function CoursePlayerPage({ params }) {
       return;
     }
 
-    if (parseInt(quizSelectedOption) === currentElement.content.correctAnswerIndex) {
-      setQuizFeedback("corect");
-    } else {
-      setQuizFeedback("incorect");
-    }
+    const feedbackValue = parseInt(quizSelectedOption) === currentElement.content.correctAnswerIndex ? "corect" : "incorect";
+    setQuizFeedback(feedbackValue);
+
+    setSavedAnswers(prev => ({
+      ...prev,
+      [currentElement.id]: {
+        ...prev[currentElement.id],
+        quizOption: quizSelectedOption,
+        quizFeedback: feedbackValue
+      }
+    }));
   };
 
-  // Validare Exercițiu (Simulare pentru licență)
-  const handleVerifyExercise = () => {
+  // 🔥 VALIDARE STRICTĂ EXERCIȚIU CU JUDGE0 (Verificare de Output directă)
+  const handleVerifyExercise = async () => {
     if (!exerciseCode.trim()) {
       alert("Scrie codul înainte de a-l verifica!");
       return;
     }
-    setExerciseFeedback("Codul a fost trimis cu succes! Compilarea a rulat fără erori.");
+
+    const currentElement = elements[currentStepIndex];
+    setIsCompiling(true);
+    setExerciseFeedback(null);
+
+    try {
+      const res = await fetch("/api/run-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source_code: exerciseCode,
+          language_id: currentElement.content.languageId || 71, 
+        }),
+      });
+
+      const result = await res.json();
+      let feedbackObj = { statusId: result.status?.id, text: "", isCorrect: false };
+
+      if (result.status?.id === 3) {
+        // Preluăm rezultatul rulării și eliminăm spațiile/liniile goale inutile de la început/sfârșit
+        const actualOutput = (result.stdout || "").trim();
+        
+        // Căutăm răspunsul profesorului sub diverse denumiri posibile ca să fim siguri că îl mapăm corect
+        const expectedOutputRaw = 
+          currentElement.content.expectedOutput ?? 
+          currentElement.content.expected_output ?? 
+          currentElement.content.correct_output ?? 
+          currentElement.content.output_asteptat;
+
+        if (expectedOutputRaw !== undefined && expectedOutputRaw !== null) {
+          const expectedOutput = String(expectedOutputRaw).trim();
+
+          if (actualOutput === expectedOutput) {
+            feedbackObj.text = result.stdout || "Codul a rulat cu succes și rezultatul este cel corect! 🎉";
+            feedbackObj.isCorrect = true;
+          } else {
+            // Rezultatul diferă (ex: Studentul a scos "a", dar se aștepta "f")
+            feedbackObj.text = `❌ Rezultat incorect!\n\nOutput-ul codului tău:\n"${actualOutput || "(fără afișare/print)"}"\n\nOutput-ul așteptat de exercițiu:\n"${expectedOutput}"`;
+            feedbackObj.isCorrect = false;
+          }
+        } else {
+          // Alertă de siguranță în caz că profesorul a uitat să pună câmpul în JSON-ul din Supabase
+          feedbackObj.text = "⚠️ Eroare Configurare Curs: Profesorul nu a definit un output așteptat (expectedOutput) în baza de date pentru acest exercițiu. Contactează administratorul.";
+          feedbackObj.isCorrect = false;
+        }
+      } else if (result.status?.id === 6) {
+        feedbackObj.text = `Eroare de compilare/sintaxă:\n${result.compile_output}`;
+        feedbackObj.isCorrect = false;
+      } else {
+        feedbackObj.text = `Eroare la rulare (Runtime Error):\n${result.stderr || "Ceva nu a mers bine în timpul execuției."}`;
+        feedbackObj.isCorrect = false;
+      }
+
+      setExerciseFeedback(feedbackObj);
+
+      // Salvăm starea în istoricul local
+      setSavedAnswers(prev => ({
+        ...prev,
+        [currentElement.id]: {
+          ...prev[currentElement.id],
+          code: exerciseCode,
+          exerciseFeedback: feedbackObj
+        }
+      }));
+
+    } catch (err) {
+      console.error(err);
+      setExerciseFeedback({ statusId: 0, text: "A apărut o eroare de conexiune cu serverul de compilare.", isCorrect: false });
+    } finally {
+      setIsCompiling(false);
+    }
   };
 
   if (loading) {
@@ -125,7 +244,6 @@ export default function CoursePlayerPage({ params }) {
 
   const currentElement = elements[currentStepIndex];
 
-  // Helper pentru a extrage explicația opțiunii selectate în mod sigur
   const getSelectedOptionExplanation = () => {
     if (quizSelectedOption === null || !currentElement?.content?.options) return null;
     const selectedOpt = currentElement.content.options[parseInt(quizSelectedOption)];
@@ -133,6 +251,7 @@ export default function CoursePlayerPage({ params }) {
   };
 
   const currentExplanation = getSelectedOptionExplanation();
+  const isCurrentCompleted = isStepCompleted(currentStepIndex);
 
   return (
     <div className="min-h-screen bg-gray-50 text-black font-sans flex flex-col h-screen">
@@ -145,7 +264,7 @@ export default function CoursePlayerPage({ params }) {
           </button>
           <div>
             <h1 className="text-sm font-bold text-gray-900 line-clamp-1">{course.title}</h1>
-            <p className="text-[11px] text-gray-400">Mod învățare activ</p>
+            <p className="text-[11px] text-gray-400">Mod învățare active</p>
           </div>
         </div>
         <div className="text-xs font-bold bg-blue-50 text-blue-600 px-3 py-1.5 rounded-xl border border-blue-100">
@@ -160,27 +279,30 @@ export default function CoursePlayerPage({ params }) {
         <aside className="w-80 bg-white border-r border-gray-200 overflow-y-auto hidden md:block p-4 space-y-3">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-2">Conținut Curs</h3>
           <div className="space-y-1">
-            {elements.map((elem, idx) => (
-              <button
-                key={elem.id}
-                onClick={() => setCurrentStepIndex(idx)}
-                className={`w-full p-3 rounded-xl text-left transition flex items-start gap-3 ${
-                  currentStepIndex === idx
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-100"
-                    : "text-gray-700 hover:bg-gray-50"
-                }`}
-              >
-                <span className="text-base">
-                  {elem.type === "lesson" && "📄"}
-                  {elem.type === "exercise" && "💻"}
-                  {elem.type === "quiz" && "❓"}
-                </span>
-                <div className="truncate">
-                  <p className="text-xs font-bold opacity-80 uppercase text-[10px]">Pasul {idx + 1}</p>
-                  <p className="text-sm font-bold truncate">{elem.title}</p>
-                </div>
-              </button>
-            ))}
+            {elements.map((elem, idx) => {
+              const active = currentStepIndex === idx;
+              return (
+                <button
+                  key={elem.id}
+                  onClick={() => handleSidebarStepClick(idx)}
+                  className={`w-full p-3 rounded-xl text-left transition flex items-start gap-3 ${
+                    active
+                      ? "bg-blue-600 text-white shadow-md shadow-blue-100"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <span className="text-base">
+                    {elem.type === "lesson" && "📄"}
+                    {elem.type === "exercise" && "💻"}
+                    {elem.type === "quiz" && "❓"}
+                  </span>
+                  <div className="truncate">
+                    <p className="text-xs font-bold opacity-80 uppercase text-[10px]">Pasul {idx + 1}</p>
+                    <p className="text-sm font-bold truncate">{elem.title}</p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </aside>
 
@@ -235,33 +357,58 @@ export default function CoursePlayerPage({ params }) {
                         <label className="text-xs font-bold text-gray-500 uppercase">Editor de Cod</label>
                         <textarea
                           value={exerciseCode}
-                          onChange={(e) => setExerciseCode(e.target.value)}
-                          className="w-full p-4 border border-gray-300 rounded-xl font-mono text-sm bg-gray-900 text-green-400 focus:outline-none min-h-[180px]"
+                          disabled={isCompiling}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setExerciseCode(val);
+                            
+                            // 🔥 FIX: În momentul în care studentul scrie ceva nou, feedback-ul se resetează la null!
+                            // Asta înseamnă că pasul redevine NECOMPLETAT instantaneu până la o nouă rulare.
+                            setExerciseFeedback(null);
+                            
+                            setSavedAnswers(prev => ({
+                              ...prev,
+                              [currentElement.id]: { 
+                                ...prev[currentElement.id], 
+                                code: val,
+                                exerciseFeedback: null 
+                              }
+                            }));
+                          }}
+                          className="w-full p-4 border border-gray-300 rounded-xl font-mono text-sm bg-gray-900 text-green-400 focus:outline-none min-h-[180px] disabled:opacity-75"
                         />
                       </div>
                       <button 
                         onClick={handleVerifyExercise}
-                        className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-xs"
+                        disabled={isCompiling}
+                        className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-xs disabled:bg-purple-400 disabled:cursor-not-allowed"
                       >
-                        Rulează și Verifică Codul
+                        {isCompiling ? "Se compilează și rulează..." : "Rulează și Verifică Codul"}
                       </button>
                       
+                      {/* Terminal Output */}
                       {exerciseFeedback && (
-                        <div className="p-3 bg-green-50 border border-green-200 text-green-800 text-xs rounded-xl font-medium">
-                          ✅ {exerciseFeedback}
+                        <div className={`p-4 rounded-xl font-mono text-xs whitespace-pre-wrap border ${
+                          exerciseFeedback.isCorrect 
+                            ? "bg-gray-900 text-green-400 border-gray-800" 
+                            : "bg-red-50 text-red-700 border-red-200" 
+                        }`}>
+                          <div className="font-bold mb-1 uppercase text-[10px] tracking-wider opacity-60">
+                            {exerciseFeedback.isCorrect ? "🖥️ Ieșire Consolă (Stdout):" : "❌ Alertă Sistem / Rezultat:"}
+                          </div>
+                          {exerciseFeedback.text}
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* 3. ❓ RANDARE QUIZ (MODIFICATĂ) */}
+                  {/* 3. ❓ RANDARE QUIZ */}
                   {currentElement.type === "quiz" && (
                     <div className="space-y-5 pt-2">
                       <p className="text-lg font-bold text-gray-800">{currentElement.content.question}</p>
                       
                       <div className="space-y-2">
                         {currentElement.content.options.map((option, oIdx) => {
-                          // Suportă ambele cazuri: noua structură {text} sau cea veche string simplu
                           const optionText = typeof option === "object" ? option.text : option;
                           
                           return (
@@ -278,7 +425,14 @@ export default function CoursePlayerPage({ params }) {
                                 name="quiz-options" 
                                 value={oIdx}
                                 checked={quizSelectedOption === String(oIdx)}
-                                onChange={(e) => setQuizSelectedOption(e.target.value)}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setQuizSelectedOption(val);
+                                  setSavedAnswers(prev => ({
+                                    ...prev,
+                                    [currentElement.id]: { ...prev[currentElement.id], quizOption: val }
+                                  }));
+                                }}
                                 className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                               />
                               <span className="text-sm font-semibold text-gray-800">{optionText}</span>
@@ -294,7 +448,6 @@ export default function CoursePlayerPage({ params }) {
                         Trimite Răspunsul
                       </button>
 
-                      {/* FEEDBACK CU INJECTARE DE EXPLICAȚIE DINAMICĂ */}
                       {quizFeedback === "corect" && (
                         <div className="p-4 bg-green-50 border border-green-200 text-green-800 text-sm rounded-xl font-bold flex flex-col gap-1.5 shadow-xs">
                           <div className="flex items-center gap-2">
@@ -325,7 +478,7 @@ export default function CoursePlayerPage({ params }) {
 
                 </div>
 
-                {/* ZONA DE NAVIGARE (JOSUL CARDULUI) */}
+                {/* ZONA DE NAVIGARE */}
                 <div className="border-t border-gray-100 pt-6 mt-8 flex justify-between items-center shrink-0">
                   <button
                     disabled={currentStepIndex === 0}
@@ -337,18 +490,36 @@ export default function CoursePlayerPage({ params }) {
 
                   {currentStepIndex < elements.length - 1 ? (
                     <button
-                      onClick={() => setCurrentStepIndex(currentStepIndex + 1)}
-                      className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-5 py-2.5 rounded-xl transition shadow-xs"
+                      onClick={() => {
+                        if (isCurrentCompleted) {
+                          setCurrentStepIndex(currentStepIndex + 1);
+                        } else {
+                          alert("Trebuie să rezolvi corect cerința (exercițiul sau quiz-ul) înainte de a trece la următorul pas!");
+                        }
+                      }}
+                      className={`text-xs font-bold text-white px-5 py-2.5 rounded-xl transition shadow-xs ${
+                        isCurrentCompleted 
+                          ? "bg-blue-600 hover:bg-blue-700 cursor-pointer" 
+                          : "bg-gray-400 cursor-not-allowed opacity-60"
+                      }`}
                     >
                       Următorul Pas →
                     </button>
                   ) : (
                     <button
                       onClick={() => {
-                        alert("Felicitări! Ai finalizat cu succes toate modulele acestui curs.");
-                        router.push("/");
+                        if (isCurrentCompleted) {
+                          alert("Felicitări! Ai finalizat cu succes toate modulele acestui curs.");
+                          router.push("/");
+                        } else {
+                          alert("Trebuie să rezolvi corect cerința curentă înainte de a finaliza cursul!");
+                        }
                       }}
-                      className="text-xs font-bold text-white bg-green-600 hover:bg-green-700 px-5 py-2.5 rounded-xl transition shadow-md shadow-green-100"
+                      className={`text-xs font-bold text-white px-5 py-2.5 rounded-xl transition shadow-md ${
+                        isCurrentCompleted 
+                          ? "bg-green-600 hover:bg-green-700 shadow-green-100 cursor-pointer" 
+                          : "bg-gray-400 cursor-not-allowed opacity-60"
+                      }`}
                     >
                       🏆 Finalizează Cursul
                     </button>

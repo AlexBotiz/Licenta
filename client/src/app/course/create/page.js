@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../../lib/supabase"; // Corectat calea relativă conform structurii de foldere
+import { supabase } from "../../../lib/supabase"; 
 
 // 🎥 FUNCȚIE HELPER: Extrage ID-ul video-ului și generează link-ul corect pentru Embed
 const getYouTubeEmbedUrl = (url) => {
@@ -14,6 +14,15 @@ const getYouTubeEmbedUrl = (url) => {
   }
   return null;
 };
+
+// 💻 LIMBAJE SUPORTATE DE JUDGE0 (ID-urile oficiale din API-ul Judge0 standard)
+const SUPPORTED_LANGUAGES = [
+  { id: 63, name: "JavaScript (Node.js 12.14.0)" },
+  { id: 71, name: "Python (3.8.1)" },
+  { id: 54, name: "C++ (GCC 9.2.0)" },
+  { id: 62, name: "Java (OpenJDK 13.0.1)" },
+  { id: 74, name: "TypeScript (3.7.4)" }
+];
 
 export default function CreateCoursePage() {
   const router = useRouter();
@@ -35,9 +44,16 @@ export default function CreateCoursePage() {
     if (type === "lesson") {
       defaultContent = { body: "Scrie conținutul lecției aici...", videoUrl: "" };
     } else if (type === "exercise") {
-      defaultContent = { instruction: "Cerința exercițiului...", placeholderCode: "// Cod inițial aici" };
+      // 🌟 MODIFICAT: Adăugat languageId și structura de testCases pentru Judge0
+      defaultContent = { 
+        instruction: "Cerința exercițiului...", 
+        placeholderCode: "// Scrie codul tău aici\n",
+        languageId: 63, // Implicit JavaScript
+        testCases: [
+          { input: "", expected_output: "" } // Cel puțin un test case implicit
+        ]
+      };
     } else if (type === "quiz") {
-      // 🌟 MODIFICAT: Opțiunile sunt acum obiecte cu text și explicație individuală
       defaultContent = {
         question: "Întrebare nouă?",
         options: [
@@ -50,14 +66,13 @@ export default function CreateCoursePage() {
     }
 
     const newElement = {
-      id: crypto.randomUUID(), // ID temporar pentru frontend
+      id: crypto.randomUUID(), 
       type: type,
       title: `Element nou (${type})`,
       content: defaultContent
     };
 
     setElements([...elements, newElement]);
-    // Selectăm automat elementul nou creat ca să-l putem edita direct
     setSelectedElementIndex(elements.length);
   };
 
@@ -86,14 +101,12 @@ export default function CreateCoursePage() {
     try {
       setLoading(true);
 
-      // 1. Luăm userul curent ca să știm cine creează cursul
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         alert("Trebuie să fii logat pentru a crea un curs!");
         return;
       }
 
-      // 2. Inserăm cursul în tabela 'courses'
       const { data: courseData, error: courseError } = await supabase
         .from("courses")
         .insert([{ 
@@ -106,7 +119,6 @@ export default function CreateCoursePage() {
 
       if (courseError) throw courseError;
 
-      // 🧱 Alocăm automat rolul de PROFESOR pentru creatorul cursului
       const { error: enrollError } = await supabase
         .from("enrollments")
         .insert([{
@@ -117,16 +129,14 @@ export default function CreateCoursePage() {
 
       if (enrollError) throw enrollError;
 
-      // 3. Pregătim elementele pentru inserare în masă (Bulk Insert), adăugând order_index-ul lor
       const elementsToInsert = elements.map((elem, index) => ({
         course_id: courseData.id,
         type: elem.type,
         title: elem.title,
-        content: elem.content, // Aici se salvează automat noua structură JSON a Quiz-ului cu tot cu explicații
+        content: elem.content, 
         order_index: index + 1 
       }));
 
-      // 4. Inserăm toate elementele deodată în 'course_elements'
       const { error: elementsError } = await supabase
         .from("course_elements")
         .insert(elementsToInsert);
@@ -309,9 +319,10 @@ export default function CreateCoursePage() {
                 </div>
               )}
 
-              {/* RENDER EXERCIȚIU */}
+              {/* 🌟 RENDER EXERCIȚIU (MODIFICATĂ COMPLETĂ SECȚIUNEA PENTRU JUDGE0) */}
               {currentElement.type === "exercise" && (
-                <div className="space-y-4">
+                <div className="space-y-5">
+                  {/* Cerința */}
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-600 uppercase">Cerință Exercițiu</label>
                     <input 
@@ -323,6 +334,26 @@ export default function CreateCoursePage() {
                       className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50"
                     />
                   </div>
+
+                  {/* Selector Limbaj de Programare */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-600 uppercase block">Limbaj de programare (Judge0)</label>
+                    <select
+                      value={currentElement.content.languageId || 63}
+                      onChange={(e) => updateSelectedElement({
+                        content: { ...currentElement.content, languageId: parseInt(e.target.value) }
+                      })}
+                      className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50 font-medium"
+                    >
+                      {SUPPORTED_LANGUAGES.map((lang) => (
+                        <option key={lang.id} value={lang.id}>
+                          {lang.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Cod Șablon */}
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-600 uppercase">Cod Șablon / Inițial</label>
                     <textarea
@@ -330,13 +361,92 @@ export default function CreateCoursePage() {
                       onChange={(e) => updateSelectedElement({ 
                         content: { ...currentElement.content, placeholderCode: e.target.value } 
                       })}
-                      className="w-full p-4 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 min-h-[150px] font-mono bg-gray-900 text-green-400"
+                      className="w-full p-4 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 min-h-[150px] font-mono bg-gray-900 text-green-400 leading-relaxed"
                     />
+                  </div>
+
+                  {/* Zone de Teste (Test Cases) */}
+                  <div className="space-y-3 pt-2 border-t border-gray-100">
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-bold text-gray-600 uppercase block">Cazuri de Testare (Verificare Automată)</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentTests = currentElement.content.testCases || [];
+                          updateSelectedElement({
+                            content: {
+                              ...currentElement.content,
+                              testCases: [...currentTests, { input: "", expected_output: "" }]
+                            }
+                          });
+                        }}
+                        className="text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 px-3 py-1.5 rounded-lg font-bold border border-purple-200 transition"
+                      >
+                        + Adaugă Test
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {(currentElement.content.testCases || []).map((test, tIdx) => (
+                        <div key={tIdx} className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3 relative shadow-sm">
+                          <div className="flex justify-between items-center border-b border-gray-200 pb-1.5">
+                            <span className="text-xs font-bold text-purple-600 uppercase">Test #{tIdx + 1}</span>
+                            {currentElement.content.testCases.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const filteredTests = currentElement.content.testCases.filter((_, idx) => idx !== tIdx);
+                                  updateSelectedElement({
+                                    content: { ...currentElement.content, testCases: filteredTests }
+                                  });
+                                }}
+                                className="text-[11px] text-red-500 hover:underline font-semibold"
+                              >
+                                Șterge Test
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-[11px] font-bold text-gray-500 uppercase block mb-1">Date de Intrare (stdin)</label>
+                              <textarea
+                                value={test.input}
+                                placeholder="Lăsați gol dacă nu are intrări..."
+                                onChange={(e) => {
+                                  const newTests = [...currentElement.content.testCases];
+                                  newTests[tIdx] = { ...newTests[tIdx], input: e.target.value };
+                                  updateSelectedElement({
+                                    content: { ...currentElement.content, testCases: newTests }
+                                  });
+                                }}
+                                className="w-full p-2 border border-gray-200 rounded-lg text-xs font-mono bg-white h-16 resize-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-bold text-gray-500 uppercase block mb-1">Ieșire Așteptată (stdout)</label>
+                              <textarea
+                                value={test.expected_output}
+                                placeholder="Rezultatul exact pe care trebuie să-l afișeze codul..."
+                                onChange={(e) => {
+                                  const newTests = [...currentElement.content.testCases];
+                                  newTests[tIdx] = { ...newTests[tIdx], expected_output: e.target.value };
+                                  updateSelectedElement({
+                                    content: { ...currentElement.content, testCases: newTests }
+                                  });
+                                }}
+                                className="w-full p-2 border border-gray-200 rounded-lg text-xs font-mono bg-white h-16 resize-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* 🌟 RENDER QUIZ (MODIFICATĂ SECȚIUNEA PENTRU EXPLICATII) */}
+              {/* RENDER QUIZ */}
               {currentElement.type === "quiz" && (
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -356,7 +466,6 @@ export default function CreateCoursePage() {
                     
                     {currentElement.content.options.map((opt, oIdx) => (
                       <div key={oIdx} className="p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-2 shadow-sm">
-                        {/* Randul 1: Radio Button + Textul Opțiunii */}
                         <div className="flex items-center gap-2">
                           <input 
                             type="radio"
@@ -382,7 +491,6 @@ export default function CreateCoursePage() {
                           />
                         </div>
                         
-                        {/* Randul 2 (Nou): Input pentru Explicație */}
                         <div className="pl-6">
                           <input 
                             type="text"
