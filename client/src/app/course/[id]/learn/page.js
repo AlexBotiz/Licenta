@@ -3,7 +3,6 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../../lib/supabase";
 
-// 🎥 FUNCȚIE HELPER
 const getYouTubeEmbedUrl = (url) => {
   if (!url) return null;
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
@@ -18,22 +17,15 @@ export default function CoursePlayerPage({ params }) {
   const router = useRouter();
   const unwrappedParams = React.use(params);
   const courseId = unwrappedParams.id;
-
   const [course, setCourse] = useState(null);
   const [elements, setElements] = useState([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-
-  // Stări pentru interacțiune
   const [quizSelectedOption, setQuizSelectedOption] = useState(null);
   const [quizFeedback, setQuizFeedback] = useState(null);
   const [exerciseCode, setExerciseCode] = useState("");
-  const [exerciseFeedback, setExerciseFeedback] = useState(null); // Va fi { statusId, text, isCorrect }
-  
-  // Stare pentru animația de încărcare la rularea codului
+  const [exerciseFeedback, setExerciseFeedback] = useState(null);
   const [isCompiling, setIsCompiling] = useState(false);
-
-  // Dicționar istoric pași
   const [savedAnswers, setSavedAnswers] = useState({});
 
   useEffect(() => {
@@ -48,7 +40,6 @@ export default function CoursePlayerPage({ params }) {
 
         if (courseError) throw courseError;
         setCourse(courseData);
-
         const { data: elementsData, error: elementsError } = await supabase
           .from("course_elements")
           .select("*")
@@ -94,11 +85,10 @@ export default function CoursePlayerPage({ params }) {
     }
   }, [currentStepIndex, elements]);
 
-  // Funcție helper care verifică dacă un pas anume este completat cu succes
   const isStepCompleted = (idx) => {
     const elem = elements[idx];
     if (!elem) return false;
-    if (elem.type === "lesson") return true; // Lecțiile se consideră completate la citire
+    if (elem.type === "lesson") return true; 
 
     const saved = savedAnswers[elem.id];
     
@@ -113,7 +103,6 @@ export default function CoursePlayerPage({ params }) {
     return false;
   };
 
-  // Validare navigare din Sidebar (nu lasă studentul să sară pași necompletați)
   const handleSidebarStepClick = (targetIdx) => {
     if (targetIdx <= currentStepIndex) {
       setCurrentStepIndex(targetIdx);
@@ -129,7 +118,6 @@ export default function CoursePlayerPage({ params }) {
     setCurrentStepIndex(targetIdx);
   };
 
-  // Validare Quiz
   const handleVerifyQuiz = () => {
     const currentElement = elements[currentStepIndex];
     if (quizSelectedOption === null) {
@@ -150,7 +138,6 @@ export default function CoursePlayerPage({ params }) {
     }));
   };
 
-  // 🔥 VALIDARE STRICTĂ EXERCIȚIU CU JUDGE0 (Verificare de Output directă)
   const handleVerifyExercise = async () => {
     if (!exerciseCode.trim()) {
       alert("Scrie codul înainte de a-l verifica!");
@@ -175,10 +162,7 @@ export default function CoursePlayerPage({ params }) {
       let feedbackObj = { statusId: result.status?.id, text: "", isCorrect: false };
 
       if (result.status?.id === 3) {
-        // Preluăm rezultatul rulării și eliminăm spațiile/liniile goale inutile de la început/sfârșit
         const actualOutput = (result.stdout || "").trim();
-        
-        // Căutăm răspunsul profesorului sub diverse denumiri posibile ca să fim siguri că îl mapăm corect
         const expectedOutputRaw = 
           currentElement.content.expectedOutput ?? 
           currentElement.content.expected_output ?? 
@@ -192,12 +176,10 @@ export default function CoursePlayerPage({ params }) {
             feedbackObj.text = result.stdout || "Codul a rulat cu succes și rezultatul este cel corect! 🎉";
             feedbackObj.isCorrect = true;
           } else {
-            // Rezultatul diferă (ex: Studentul a scos "a", dar se aștepta "f")
             feedbackObj.text = `❌ Rezultat incorect!\n\nOutput-ul codului tău:\n"${actualOutput || "(fără afișare/print)"}"\n\nOutput-ul așteptat de exercițiu:\n"${expectedOutput}"`;
             feedbackObj.isCorrect = false;
           }
         } else {
-          // Alertă de siguranță în caz că profesorul a uitat să pună câmpul în JSON-ul din Supabase
           feedbackObj.text = "⚠️ Eroare Configurare Curs: Profesorul nu a definit un output așteptat (expectedOutput) în baza de date pentru acest exercițiu. Contactează administratorul.";
           feedbackObj.isCorrect = false;
         }
@@ -211,7 +193,6 @@ export default function CoursePlayerPage({ params }) {
 
       setExerciseFeedback(feedbackObj);
 
-      // Salvăm starea în istoricul local
       setSavedAnswers(prev => ({
         ...prev,
         [currentElement.id]: {
@@ -475,9 +456,7 @@ export default function CoursePlayerPage({ params }) {
                       )}
                     </div>
                   )}
-
                 </div>
-
                 {/* ZONA DE NAVIGARE */}
                 <div className="border-t border-gray-100 pt-6 mt-8 flex justify-between items-center shrink-0">
                   <button
@@ -487,7 +466,6 @@ export default function CoursePlayerPage({ params }) {
                   >
                     ← Înapoi
                   </button>
-
                   {currentStepIndex < elements.length - 1 ? (
                     <button
                       onClick={() => {
@@ -525,10 +503,8 @@ export default function CoursePlayerPage({ params }) {
                     </button>
                   )}
                 </div>
-
               </div>
             )}
-
           </div>
         </main>
       </div>

@@ -17,8 +17,8 @@ const getYouTubeEmbedUrl = (url) => {
 
 // 💻 LIMBAJE SUPORTATE DE JUDGE0 (ID-urile oficiale din API-ul Judge0 standard)
 const SUPPORTED_LANGUAGES = [
-  { id: 63, name: "JavaScript (Node.js 12.14.0)" },
   { id: 71, name: "Python (3.8.1)" },
+  { id: 63, name: "JavaScript (Node.js 12.14.0)" },
   { id: 54, name: "C++ (GCC 9.2.0)" },
   { id: 62, name: "Java (OpenJDK 13.0.1)" },
   { id: 74, name: "TypeScript (3.7.4)" }
@@ -44,22 +44,20 @@ export default function CreateCoursePage() {
     if (type === "lesson") {
       defaultContent = { body: "Scrie conținutul lecției aici...", videoUrl: "" };
     } else if (type === "exercise") {
-      // 🌟 MODIFICAT: Adăugat languageId și structura de testCases pentru Judge0
+      // 🌟 ALINIAT CU PLAYER-UL ȘI EDIT-UL: Structură pe bază de expectedOutput direct
       defaultContent = { 
         instruction: "Cerința exercițiului...", 
-        placeholderCode: "// Scrie codul tău aici\n",
-        languageId: 63, // Implicit JavaScript
-        testCases: [
-          { input: "", expected_output: "" } // Cel puțin un test case implicit
-        ]
+        placeholderCode: "# Scrie codul tău aici\n",
+        solutionCode: "# Rezolvarea completă a profesorului...\n",
+        expectedOutput: "Rezultatul exact așteptat",
+        languageId: 71 // Implicit Python acm că am testat că merge brici
       };
     } else if (type === "quiz") {
       defaultContent = {
         question: "Întrebare nouă?",
         options: [
           { text: "Varianta A", explanation: "" },
-          { text: "Varianta B", explanation: "" },
-          { text: "Varianta C", explanation: "" }
+          { text: "Varianta B", explanation: "" }
         ],
         correctAnswerIndex: 0
       };
@@ -180,10 +178,10 @@ export default function CreateCoursePage() {
             <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">Informații Curs</h3>
             <input 
               type="text" 
-              placeholder="Titlu curs (ex: Introducere în JavaScript)" 
+              placeholder="Titlu curs (ex: Introducere în Python)" 
               value={courseTitle}
               onChange={(e) => setCourseTitle(e.target.value)}
-              className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50"
+              className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50 font-semibold"
             />
             <textarea 
               placeholder="Descriere scurtă a cursului..." 
@@ -246,7 +244,7 @@ export default function CreateCoursePage() {
             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-6">
               
               <div className="border-b border-gray-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
+                <div className="space-y-1 w-full mr-4">
                   <span className="text-xs font-bold uppercase text-blue-600 px-2.5 py-1 bg-blue-50 rounded-lg">
                     Configurare {currentElement.type}
                   </span>
@@ -264,7 +262,7 @@ export default function CreateCoursePage() {
                     setElements(filtered);
                     setSelectedElementIndex(filtered.length > 0 ? 0 : null);
                   }}
-                  className="text-xs font-semibold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-xl transition self-start sm:self-auto"
+                  className="text-xs font-semibold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-xl transition shrink-0 self-start sm:self-auto"
                 >
                   Șterge element
                 </button>
@@ -319,7 +317,7 @@ export default function CreateCoursePage() {
                 </div>
               )}
 
-              {/* 🌟 RENDER EXERCIȚIU (MODIFICATĂ COMPLETĂ SECȚIUNEA PENTRU JUDGE0) */}
+              {/* 💻 RENDER EXERCIȚIU */}
               {currentElement.type === "exercise" && (
                 <div className="space-y-5">
                   {/* Cerința */}
@@ -327,11 +325,12 @@ export default function CreateCoursePage() {
                     <label className="text-xs font-bold text-gray-600 uppercase">Cerință Exercițiu</label>
                     <input 
                       type="text"
-                      value={currentElement.content.instruction}
+                      value={currentElement.content.instruction || ""}
                       onChange={(e) => updateSelectedElement({
                         content: { ...currentElement.content, instruction: e.target.value }
                       })}
-                      className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50"
+                      className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50 font-semibold"
+                      placeholder="Ex: Scrie un script care printează textul cerut."
                     />
                   </div>
 
@@ -339,11 +338,11 @@ export default function CreateCoursePage() {
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-600 uppercase block">Limbaj de programare (Judge0)</label>
                     <select
-                      value={currentElement.content.languageId || 63}
+                      value={currentElement.content.languageId || 71}
                       onChange={(e) => updateSelectedElement({
                         content: { ...currentElement.content, languageId: parseInt(e.target.value) }
                       })}
-                      className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50 font-medium"
+                      className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50 font-medium cursor-pointer"
                     >
                       {SUPPORTED_LANGUAGES.map((lang) => (
                         <option key={lang.id} value={lang.id}>
@@ -355,93 +354,40 @@ export default function CreateCoursePage() {
 
                   {/* Cod Șablon */}
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-600 uppercase">Cod Șablon / Inițial</label>
+                    <label className="text-xs font-bold text-purple-600 uppercase block">Cod Șablon / Inițial (Ce vede studentul la început)</label>
                     <textarea
-                      value={currentElement.content.placeholderCode}
+                      value={currentElement.content.placeholderCode || ""}
                       onChange={(e) => updateSelectedElement({ 
                         content: { ...currentElement.content, placeholderCode: e.target.value } 
                       })}
-                      className="w-full p-4 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 min-h-[150px] font-mono bg-gray-900 text-green-400 leading-relaxed"
+                      className="w-full p-4 border border-gray-200 rounded-xl text-sm focus:outline-purple-500 min-h-[120px] font-mono bg-gray-900 text-green-400 leading-relaxed"
                     />
                   </div>
 
-                  {/* Zone de Teste (Test Cases) */}
-                  <div className="space-y-3 pt-2 border-t border-gray-100">
-                    <div className="flex justify-between items-center">
-                      <label className="text-xs font-bold text-gray-600 uppercase block">Cazuri de Testare (Verificare Automată)</label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const currentTests = currentElement.content.testCases || [];
-                          updateSelectedElement({
-                            content: {
-                              ...currentElement.content,
-                              testCases: [...currentTests, { input: "", expected_output: "" }]
-                            }
-                          });
-                        }}
-                        className="text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 px-3 py-1.5 rounded-lg font-bold border border-purple-200 transition"
-                      >
-                        + Adaugă Test
-                      </button>
-                    </div>
+                  {/* Cod Rezolvare Profesor */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-blue-600 uppercase block">Codul Soluției de Referință (Pentru profesor)</label>
+                    <textarea
+                      value={currentElement.content.solutionCode || ""}
+                      onChange={(e) => updateSelectedElement({ 
+                        content: { ...currentElement.content, solutionCode: e.target.value } 
+                      })}
+                      className="w-full p-4 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 min-h-[120px] font-mono bg-gray-900 text-blue-400 leading-relaxed"
+                      placeholder="# Pune rezolvarea completă corectă aici..."
+                    />
+                  </div>
 
-                    <div className="space-y-3">
-                      {(currentElement.content.testCases || []).map((test, tIdx) => (
-                        <div key={tIdx} className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3 relative shadow-sm">
-                          <div className="flex justify-between items-center border-b border-gray-200 pb-1.5">
-                            <span className="text-xs font-bold text-purple-600 uppercase">Test #{tIdx + 1}</span>
-                            {currentElement.content.testCases.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const filteredTests = currentElement.content.testCases.filter((_, idx) => idx !== tIdx);
-                                  updateSelectedElement({
-                                    content: { ...currentElement.content, testCases: filteredTests }
-                                  });
-                                }}
-                                className="text-[11px] text-red-500 hover:underline font-semibold"
-                              >
-                                Șterge Test
-                              </button>
-                            )}
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                              <label className="text-[11px] font-bold text-gray-500 uppercase block mb-1">Date de Intrare (stdin)</label>
-                              <textarea
-                                value={test.input}
-                                placeholder="Lăsați gol dacă nu are intrări..."
-                                onChange={(e) => {
-                                  const newTests = [...currentElement.content.testCases];
-                                  newTests[tIdx] = { ...newTests[tIdx], input: e.target.value };
-                                  updateSelectedElement({
-                                    content: { ...currentElement.content, testCases: newTests }
-                                  });
-                                }}
-                                className="w-full p-2 border border-gray-200 rounded-lg text-xs font-mono bg-white h-16 resize-none"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[11px] font-bold text-gray-500 uppercase block mb-1">Ieșire Așteptată (stdout)</label>
-                              <textarea
-                                value={test.expected_output}
-                                placeholder="Rezultatul exact pe care trebuie să-l afișeze codul..."
-                                onChange={(e) => {
-                                  const newTests = [...currentElement.content.testCases];
-                                  newTests[tIdx] = { ...newTests[tIdx], expected_output: e.target.value };
-                                  updateSelectedElement({
-                                    content: { ...currentElement.content, testCases: newTests }
-                                  });
-                                }}
-                                className="w-full p-2 border border-gray-200 rounded-lg text-xs font-mono bg-white h-16 resize-none"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                  {/* Output Așteptat */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-amber-600 uppercase block">Ieșire Așteptată în Consolă (Validare Automată Strictă)</label>
+                    <textarea
+                      value={currentElement.content.expectedOutput || ""}
+                      onChange={(e) => updateSelectedElement({ 
+                        content: { ...currentElement.content, expectedOutput: e.target.value } 
+                      })}
+                      className="w-full p-3 border border-amber-200 rounded-xl text-sm font-mono bg-amber-50/20 text-gray-900 focus:outline-amber-500 min-h-[70px]"
+                      placeholder="Ex: f"
+                    />
                   </div>
                 </div>
               )}
@@ -450,14 +396,14 @@ export default function CreateCoursePage() {
               {currentElement.type === "quiz" && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-600 uppercase">Întrebare</label>
+                    <label className="text-xs font-bold text-gray-600 uppercase">Întrebare Quiz</label>
                     <input 
                       type="text"
                       value={currentElement.content.question}
                       onChange={(e) => updateSelectedElement({
                         content: { ...currentElement.content, question: e.target.value }
                       })}
-                      className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50"
+                      className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50 font-semibold"
                     />
                   </div>
                   
@@ -465,8 +411,8 @@ export default function CreateCoursePage() {
                     <label className="text-xs font-bold text-gray-600 uppercase block">Opțiuni de Răspuns și Explicații</label>
                     
                     {currentElement.content.options.map((opt, oIdx) => (
-                      <div key={oIdx} className="p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-2 shadow-sm">
-                        <div className="flex items-center gap-2">
+                      <div key={oIdx} className="p-4 bg-gray-50 rounded-2xl border border-gray-200 space-y-3 shadow-xs relative">
+                        <div className="flex items-center gap-3">
                           <input 
                             type="radio"
                             name={`correct-${currentElement.id}`}
@@ -474,7 +420,7 @@ export default function CreateCoursePage() {
                             onChange={() => updateSelectedElement({
                               content: { ...currentElement.content, correctAnswerIndex: oIdx }
                             })}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0"
                           />
                           <input 
                             type="text"
@@ -486,12 +432,31 @@ export default function CreateCoursePage() {
                                 content: { ...currentElement.content, options: newOpts }
                               });
                             }}
-                            className="w-full p-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-blue-500 bg-white"
+                            className="w-full p-2.5 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-blue-500 bg-white"
                             placeholder={`Opțiunea ${oIdx + 1}`}
                           />
+                          
+                          {currentElement.content.options.length > 2 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newOpts = currentElement.content.options.filter((_, idx) => idx !== oIdx);
+                                let newCorrectIdx = currentElement.content.correctAnswerIndex;
+                                if (newCorrectIdx === oIdx) newCorrectIdx = 0;
+                                else if (newCorrectIdx > oIdx) newCorrectIdx--;
+
+                                updateSelectedElement({
+                                  content: { ...currentElement.content, options: newOpts, correctAnswerIndex: newCorrectIdx }
+                                });
+                              }}
+                              className="text-gray-400 hover:text-red-500 font-bold p-1 bg-white border border-gray-200 rounded-lg text-xs transition"
+                            >
+                              ✕
+                            </button>
+                          )}
                         </div>
                         
-                        <div className="pl-6">
+                        <div className="pl-7">
                           <input 
                             type="text"
                             value={opt.explanation || ""}
@@ -502,14 +467,25 @@ export default function CreateCoursePage() {
                                 content: { ...currentElement.content, options: newOpts }
                               });
                             }}
-                            className="w-full p-2 border border-gray-200 rounded-lg text-[11px] focus:outline-purple-400 bg-white text-gray-600 italic"
-                            placeholder={`💡 Explicație dacă studentul alege această variantă... (opțional)`}
+                            className="w-full p-2.5 border border-gray-200 rounded-xl text-xs focus:outline-amber-500 bg-white text-gray-600 italic"
+                            placeholder={`💡 Explicație personalizată student la selecție... (opțional)`}
                           />
                         </div>
                       </div>
                     ))}
                     
-                    <p className="text-[11px] text-gray-400 mt-1">* Bifează cercul din stânga pentru răspunsul corect.</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newOpts = [...currentElement.content.options, { text: `Opțiunea ${currentElement.content.options.length + 1}`, explanation: "" }];
+                        updateSelectedElement({ content: { ...currentElement.content, options: newOpts } });
+                      }}
+                      className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 border border-dashed border-gray-300 rounded-xl text-xs font-bold transition"
+                    >
+                      + Adaugă Opțiune Nouă
+                    </button>
+                    
+                    <p className="text-[11px] text-gray-400 mt-1">* Bifează cercul din stânga pentru răspunsul considerat corect.</p>
                   </div>
                 </div>
               )}
