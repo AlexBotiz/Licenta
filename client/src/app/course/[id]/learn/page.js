@@ -17,16 +17,25 @@ export default function CoursePlayerPage({ params }) {
   const router = useRouter();
   const unwrappedParams = React.use(params);
   const courseId = unwrappedParams.id;
+  
   const [course, setCourse] = useState(null);
   const [elements, setElements] = useState([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  
   const [quizSelectedOption, setQuizSelectedOption] = useState(null);
   const [quizFeedback, setQuizFeedback] = useState(null);
   const [exerciseCode, setExerciseCode] = useState("");
   const [exerciseFeedback, setExerciseFeedback] = useState(null);
   const [isCompiling, setIsCompiling] = useState(false);
   const [savedAnswers, setSavedAnswers] = useState({});
+
+  // 🤖 STATE PENTRU ASISTENTUL AI
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState([
+    { role: "ai", text: "Salut! Sunt asistentul tău AI. Ai nevoie de ajutor cu acest exercițiu sau vrei să îți explic ceva din lecție?" }
+  ]);
 
   useEffect(() => {
     async function loadCourseAndElements() {
@@ -210,6 +219,28 @@ export default function CoursePlayerPage({ params }) {
     }
   };
 
+const handleSendChatMessage = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    
+    const newMessages = [...chatMessages, { role: "user", text: chatInput }];
+    setChatMessages(newMessages);
+    setChatInput("");
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: newMessages }),
+      });
+
+      const data = await response.json();
+      setChatMessages(prev => [...prev, { role: "ai", text: data.text }]);
+    } catch (error) {
+      setChatMessages(prev => [...prev, { role: "ai", text: "Eroare la conectarea cu AI-ul." }]);
+    }
+  };
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-white text-gray-500">Se încarcă interfața de studiu...</div>;
   }
@@ -235,17 +266,17 @@ export default function CoursePlayerPage({ params }) {
   const isCurrentCompleted = isStepCompleted(currentStepIndex);
 
   return (
-    <div className="min-h-screen bg-gray-50 text-black font-sans flex flex-col h-screen">
+    <div className="min-h-screen bg-gray-50 text-black font-sans flex flex-col h-screen relative">
       
       {/* NAVBAR TOP */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shrink-0">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shrink-0 z-10">
         <div className="flex items-center gap-4">
           <button onClick={() => router.push("/")} className="text-xs font-bold text-gray-500 hover:text-black bg-gray-100 px-3 py-1.5 rounded-lg transition">
             ✕ Ieși din Curs
           </button>
           <div>
             <h1 className="text-sm font-bold text-gray-900 line-clamp-1">{course.title}</h1>
-            <p className="text-[11px] text-gray-400">Mod învățare active</p>
+            <p className="text-[11px] text-gray-400">Mod învățare activă</p>
           </div>
         </div>
         <div className="text-xs font-bold bg-blue-50 text-blue-600 px-3 py-1.5 rounded-xl border border-blue-100">
@@ -257,7 +288,7 @@ export default function CoursePlayerPage({ params }) {
       <div className="flex flex-1 overflow-hidden">
         
         {/* SIDEBAR STÂNGA */}
-        <aside className="w-80 bg-white border-r border-gray-200 overflow-y-auto hidden md:block p-4 space-y-3">
+        <aside className="w-80 bg-white border-r border-gray-200 overflow-y-auto hidden md:block p-4 space-y-3 z-10">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider px-2">Conținut Curs</h3>
           <div className="space-y-1">
             {elements.map((elem, idx) => {
@@ -288,7 +319,7 @@ export default function CoursePlayerPage({ params }) {
         </aside>
 
         {/* SPATIUL CENTRAL */}
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-6 md:p-12 flex justify-center">
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-6 md:p-12 flex justify-center pb-24">
           <div className="max-w-3xl w-full">
             
             {elements.length === 0 ? (
@@ -308,7 +339,7 @@ export default function CoursePlayerPage({ params }) {
                     <h2 className="text-2xl font-bold text-gray-900 mt-2">{currentElement.title}</h2>
                   </div>
 
-                  {/* 1. RANDARE LECȚIE */}
+                  {/* RANDARE LECȚIE */}
                   {currentElement.type === "lesson" && (
                     <div className="space-y-6 pt-2">
                       {currentElement.content.videoUrl && getYouTubeEmbedUrl(currentElement.content.videoUrl) && (
@@ -328,7 +359,7 @@ export default function CoursePlayerPage({ params }) {
                     </div>
                   )}
 
-                  {/* 2. RANDARE EXERCIȚIU */}
+                  {/* RANDARE EXERCIȚIU */}
                   {currentElement.type === "exercise" && (
                     <div className="space-y-4 pt-2">
                       <div className="bg-purple-50 border border-purple-100 p-4 rounded-xl text-sm text-purple-900 font-medium">
@@ -342,11 +373,7 @@ export default function CoursePlayerPage({ params }) {
                           onChange={(e) => {
                             const val = e.target.value;
                             setExerciseCode(val);
-                            
-                            // 🔥 FIX: În momentul în care studentul scrie ceva nou, feedback-ul se resetează la null!
-                            // Asta înseamnă că pasul redevine NECOMPLETAT instantaneu până la o nouă rulare.
                             setExerciseFeedback(null);
-                            
                             setSavedAnswers(prev => ({
                               ...prev,
                               [currentElement.id]: { 
@@ -367,7 +394,6 @@ export default function CoursePlayerPage({ params }) {
                         {isCompiling ? "Se compilează și rulează..." : "Rulează și Verifică Codul"}
                       </button>
                       
-                      {/* Terminal Output */}
                       {exerciseFeedback && (
                         <div className={`p-4 rounded-xl font-mono text-xs whitespace-pre-wrap border ${
                           exerciseFeedback.isCorrect 
@@ -383,7 +409,7 @@ export default function CoursePlayerPage({ params }) {
                     </div>
                   )}
 
-                  {/* 3. ❓ RANDARE QUIZ */}
+                  {/* RANDARE QUIZ */}
                   {currentElement.type === "quiz" && (
                     <div className="space-y-5 pt-2">
                       <p className="text-lg font-bold text-gray-800">{currentElement.content.question}</p>
@@ -457,6 +483,7 @@ export default function CoursePlayerPage({ params }) {
                     </div>
                   )}
                 </div>
+                
                 {/* ZONA DE NAVIGARE */}
                 <div className="border-t border-gray-100 pt-6 mt-8 flex justify-between items-center shrink-0">
                   <button
@@ -508,6 +535,80 @@ export default function CoursePlayerPage({ params }) {
           </div>
         </main>
       </div>
+
+      {/* 🤖 CHATBOT AI WIDGET (Plutitor dreapta-jos) */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+        {/* Fereastra de Chat */}
+        {isChatOpen && (
+          <div className="mb-4 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden transition-all duration-300 ease-in-out origin-bottom-right" style={{ height: "500px", maxHeight: "75vh" }}>
+            
+            {/* Header Chat */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 flex justify-between items-center text-white shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">✨</span>
+                <div>
+                  <h3 className="font-bold text-sm leading-tight">Asistent AI</h3>
+                  <p className="text-[10px] opacity-80">Gata să te ajute la cod</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsChatOpen(false)}
+                className="text-white hover:text-blue-100 transition rounded-full p-1 hover:bg-white/20"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Zona de Mesaje */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+              {chatMessages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[85%] p-3 text-sm rounded-2xl shadow-sm ${
+                    msg.role === "user" 
+                      ? "bg-blue-600 text-white rounded-br-none" 
+                      : "bg-white border border-gray-200 text-gray-800 rounded-bl-none"
+                  }`}>
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Input Chat */}
+            <form onSubmit={handleSendChatMessage} className="p-3 bg-white border-t border-gray-100 flex gap-2 items-center">
+              <input 
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Întreabă AI-ul..."
+                className="flex-1 p-2.5 bg-gray-100 border-transparent focus:border-blue-500 focus:bg-white focus:ring-0 rounded-xl text-sm transition outline-none"
+              />
+              <button 
+                type="submit"
+                disabled={!chatInput.trim()}
+                className="bg-blue-600 text-white p-2.5 rounded-xl hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-sm"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Butonul de Toggle */}
+        <button
+          onClick={() => setIsChatOpen(!isChatOpen)}
+          className={`${
+            isChatOpen ? "bg-gray-800 hover:bg-gray-900" : "bg-blue-600 hover:bg-blue-700"
+          } text-white p-4 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center transform hover:scale-105`}
+        >
+          {isChatOpen ? (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          ) : (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+          )}
+        </button>
+      </div>
+
     </div>
   );
 }
