@@ -19,6 +19,7 @@ export default function EditCoursePage({ params }) {
   const [courseDescription, setCourseDescription] = useState("");
   const [elements, setElements] = useState([]);
   const [selectedElementIndex, setSelectedElementIndex] = useState(null);
+  const [aiPrompt, setAiPrompt] = useState("Ești un mentor de programare. Nu oferi codul complet, ghidează studentul.");
 
   // Verificăm rolul (Admin global sau Profesorul cursului) și încărcăm datele
   useEffect(() => {
@@ -75,7 +76,7 @@ export default function EditCoursePage({ params }) {
         if (courseError) throw courseError;
         setCourseTitle(course.title);
         setCourseDescription(course.description);
-
+        setAiPrompt(course.ai_system_prompt || "Ești un mentor de programare. Nu oferi codul complet, ghidează studentul."); // <--- SETEAZĂ STAREA
         // Încărcăm elementele de tip puzzle
         const { data: courseElements, error: elementsError } = await supabase
           .from("course_elements")
@@ -152,7 +153,7 @@ export default function EditCoursePage({ params }) {
 
       const { error: courseUpdateError } = await supabase
         .from("courses")
-        .update({ title: courseTitle, description: courseDescription })
+        .update({ title: courseTitle, description: courseDescription, ai_system_prompt: aiPrompt })
         .eq("id", courseId);
 
       if (courseUpdateError) throw courseUpdateError;
@@ -276,6 +277,14 @@ export default function EditCoursePage({ params }) {
               onChange={(e) => setCourseDescription(e.target.value)}
               className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50 h-20 resize-none"
               placeholder="Descriere"
+            />
+            {/* ADĂUGAREA NOUĂ */}
+            <label className="text-xs font-bold text-gray-500 uppercase block mt-4">Instrucțiuni AI (Prompt)</label>
+            <textarea 
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50 h-20 resize-none"
+              placeholder="Ex: Ești un mentor..."
             />
 
             <button

@@ -228,11 +228,14 @@ const handleSendChatMessage = async (e) => {
     setChatInput("");
 
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages }),
-      });
+          const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            messages: newMessages,
+            courseId: courseId // Trimitem ID-ul cursului curent
+          }),
+        });
 
       const data = await response.json();
       setChatMessages(prev => [...prev, { role: "ai", text: data.text }]);

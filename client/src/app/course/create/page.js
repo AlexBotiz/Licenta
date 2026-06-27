@@ -37,6 +37,8 @@ export default function CreateCoursePage() {
   const [selectedElementIndex, setSelectedElementIndex] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  const [aiPrompt, setAiPrompt] = useState("Ești un mentor de programare. Nu oferi codul complet, ghidează studentul.");
+
   // Funcție pentru adăugarea unui element nou în listă
   const handleAddElement = (type) => {
     let defaultContent = {};
@@ -110,6 +112,7 @@ export default function CreateCoursePage() {
         .insert([{ 
           title: courseTitle, 
           description: courseDescription,
+          ai_system_prompt: aiPrompt, // <--- ADĂUGAT
           created_by: session.user.email 
         }])
         .select()
@@ -187,6 +190,13 @@ export default function CreateCoursePage() {
               placeholder="Descriere scurtă a cursului..." 
               value={courseDescription}
               onChange={(e) => setCourseDescription(e.target.value)}
+              className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50 h-20 resize-none"
+            />
+            <label className="text-xs font-bold text-gray-500 uppercase block mt-4">Instrucțiuni AI (Prompt)</label>
+            <textarea 
+              placeholder="Ex: Ești un mentor strict, oferă doar indicii..." 
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
               className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50 h-20 resize-none"
             />
           </div>
