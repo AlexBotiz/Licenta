@@ -1,4 +1,5 @@
 "use client";
+// Pagina pentru vizualizarea detaliilor unui curs, cu verificarea autentificării și a înscrierii utilizatorului
 import { useEffect, useState, use } from "react"; 
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
@@ -6,7 +7,6 @@ import { supabase } from "../../../lib/supabase";
 export default function CourseDetails({ params }) {
   const unwrappedParams = use(params);
   const courseId = unwrappedParams.id;
-
   const [course, setCourse] = useState(null);
   const [elements, setElements] = useState([]); 
   const [loading, setLoading] = useState(true);
@@ -16,7 +16,7 @@ export default function CourseDetails({ params }) {
 
   useEffect(() => {
     async function fetchCourseData() {
-      // 1. Verificăm dacă userul este logat
+      // Verificăm dacă userul este logat
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         router.push("/login");
@@ -25,7 +25,7 @@ export default function CourseDetails({ params }) {
 
       const email = session.user.email;
 
-      // 2. Aducem detaliile cursului din tabela 'courses'
+      // Aducem detaliile cursului din tabela 'courses'
       const { data: courseData } = await supabase
         .from('courses')
         .select('*')
@@ -34,22 +34,21 @@ export default function CourseDetails({ params }) {
 
       if (courseData) setCourse(courseData);
 
-      // 3. Verificăm înscrierea ȘI rolul utilizatorului în cadrul acestui curs
+      // Verificăm înscrierea ȘI rolul utilizatorului în cadrul acestui curs
       const { data: enrollmentData } = await supabase
         .from('enrollments')
-        .select('id, role') // Am adăugat 'role' în select
+        .select('id, role') 
         .eq('user_email', email)
         .eq('course_id', courseId);
 
       if (enrollmentData && enrollmentData.length > 0) {
         setIsEnrolled(true);
-        // Dacă rolul înregistrat este 'teacher', îi dăm drepturi de editare în interfață
         if (enrollmentData[0].role === "teacher") {
           setIsTeacher(true);
         }
       }
 
-      // 4. Aducem elementele de puzzle legate de acest curs
+      // Aducem elementele de puzzle legate de acest curs
       try {
         const { data: elementsData } = await supabase
           .from('course_elements')
@@ -85,7 +84,7 @@ export default function CourseDetails({ params }) {
         { 
           user_email: session.user.email, 
           course_id: courseId,
-          role: 'student' // Înscrierea standard de pe buton oferă rol de student
+          role: 'student' 
         }
       ]);
 
@@ -142,7 +141,7 @@ export default function CourseDetails({ params }) {
                 <span>Creat de: <strong className="text-gray-900">{course.created_by || "Profesor / Admin"}</strong></span>
               </div>
               <span className="text-gray-300">|</span>
-              <span>⏳ {elements.length > 0 ? `${elements.length * 45} minute estimate` : "0 minute"}</span>
+              <span>⏳ {course.duration_minutes || 0} minute estimate</span>
             </div>
           </div>
 
@@ -150,18 +149,16 @@ export default function CourseDetails({ params }) {
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Ce vei învăța în acest curs</h3>
             <ul className="space-y-3 text-sm text-gray-600">
-              <li className="flex items-start gap-3">
-                <span className="text-green-500 font-bold">✓</span>
-                <span>Înțelegerea conceptelor teoretice structurate pe capitole.</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-green-500 font-bold">✓</span>
-                <span>Rezolvarea de exerciții practice ghidate de un companion AI inteligent.</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="text-green-500 font-bold">✓</span>
-                <span>Evaluarea cunoștințelor prin chestionare grilă la final de secțiune.</span>
-              </li>
+              {course.learning_outcomes && course.learning_outcomes.length > 0 ? (
+                course.learning_outcomes.map((outcome, index) => (
+                  <li key={index} className="flex items-start gap-3">
+                    <span className="text-green-500 font-bold">✓</span>
+                    <span>{outcome}</span>
+                  </li>
+                ))
+              ) : (
+                <li className="text-gray-400">Nu au fost setate obiective de învățare pentru acest curs.</li>
+              )}
             </ul>
           </div>
 
@@ -217,7 +214,7 @@ export default function CourseDetails({ params }) {
               </button>
             )}
 
-            {/* ⚙️ BUTONUL SECRET AFIȘAT DOAR PENTRU PROFESOR */}
+            {/* BUTONUL SECRET AFIȘAT DOAR PENTRU PROFESOR */}
             {isTeacher && (
               <button 
                 onClick={() => router.push(`/course/${courseId}/edit`)}
@@ -229,13 +226,10 @@ export default function CourseDetails({ params }) {
 
             <div className="mt-6 pt-6 border-t border-gray-100 space-y-3 text-xs text-gray-600">
               <div className="flex justify-between">
-                <span>Nivel:</span> <span className="font-semibold text-gray-900">Începător</span>
+                <span>Nivel:</span> <span className="font-semibold text-gray-900">{course.level || "Nespecificat"}</span>
               </div>
               <div className="flex justify-between">
                 <span>Structură:</span> <span className="font-semibold text-gray-900">Blocuri Puzzle</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Ghidaj AI:</span> <span className="font-semibold text-blue-600">Activ</span>
               </div>
             </div>
           </div>

@@ -1,27 +1,22 @@
 "use client";
+// Pagina pentru editarea unui curs, cu verificarea autentificării și a drepturilor de acces (Admin global sau Profesorul cursului)
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../../lib/supabase";
 
 export default function EditCoursePage({ params }) {
   const router = useRouter();
-  
-  // Unwrap params (recomandat în versiunile noi de Next.js)
   const { id: courseId } = React.use(params);
-
-  // Stări pentru autorizare și încărcare
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [loading, setLoading] = useState(false);
-
-  // Datele cursului
   const [courseTitle, setCourseTitle] = useState("");
   const [courseDescription, setCourseDescription] = useState("");
   const [elements, setElements] = useState([]);
   const [selectedElementIndex, setSelectedElementIndex] = useState(null);
   const [aiPrompt, setAiPrompt] = useState("Ești un mentor de programare. Nu oferi codul complet, ghidează studentul.");
 
-  // Verificăm rolul (Admin global sau Profesorul cursului) și încărcăm datele
+  // Verificăm rolul și încărcăm datele
   useEffect(() => {
     const checkAuthAndFetchData = async () => {
       try {
@@ -34,7 +29,7 @@ export default function EditCoursePage({ params }) {
 
         const userEmail = session.user.email;
 
-        // PASUL A: Verificăm mai întâi dacă utilizatorul este ADMIN GLOBAL în tabela 'profiles'
+        // Verificăm mai întâi dacă utilizatorul este ADMIN GLOBAL în tabela 'profiles'
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("role")
@@ -46,7 +41,7 @@ export default function EditCoursePage({ params }) {
         if (profile && profile.role === "admin") {
           hasAccess = true;
         } else {
-          // PASUL B: Dacă NU este admin, verificăm dacă este profesorul înscris la acest curs
+          // Dacă NU este admin, verificăm dacă este profesorul înscris la acest curs
           const { data: enrollment, error: enrollError } = await supabase
             .from("enrollments")
             .select("role")
@@ -76,7 +71,8 @@ export default function EditCoursePage({ params }) {
         if (courseError) throw courseError;
         setCourseTitle(course.title);
         setCourseDescription(course.description);
-        setAiPrompt(course.ai_system_prompt || "Ești un mentor de programare. Nu oferi codul complet, ghidează studentul."); // <--- SETEAZĂ STAREA
+        setAiPrompt(course.ai_system_prompt || "Ești un mentor de programare. Nu oferi codul complet, ghidează studentul.");
+
         // Încărcăm elementele de tip puzzle
         const { data: courseElements, error: elementsError } = await supabase
           .from("course_elements")
@@ -104,7 +100,6 @@ export default function EditCoursePage({ params }) {
     if (type === "lesson") {
       defaultContent = { body: "Conținut lecție nouă...", videoUrl: "" };
     } else if (type === "exercise") {
-      // 🌟 MODIFICAT: Structură completă pentru rulare și teste Judge0
       defaultContent = { 
         instruction: "Cerință nouă...", 
         placeholderCode: "// Scrie codul de pornire pentru student aici...\n",
@@ -364,7 +359,7 @@ export default function EditCoursePage({ params }) {
                 </button>
               </div>
 
-              {/* 1. EDITARE LECȚIE */}
+              {/* EDITARE LECȚIE */}
               {currentElement.type === "lesson" && (
                 <div className="space-y-4">
                   <div className="space-y-1">
@@ -390,7 +385,7 @@ export default function EditCoursePage({ params }) {
                 </div>
               )}
 
-              {/* 2. 💻 EDITARE EXERCIȚIU (MODIFICATĂ COMPLET) */}
+              {/* EDITARE EXERCIȚIU */}
               {currentElement.type === "exercise" && (
                 <div className="space-y-5">
                   {/* Cerința */}
@@ -440,7 +435,7 @@ export default function EditCoursePage({ params }) {
                 </div>
               )}
 
-              {/* 3. ❓ EDITARE QUIZ */}
+              {/* EDITARE QUIZ */}
               {currentElement.type === "quiz" && (
                 <div className="space-y-5">
                   <div className="space-y-1">
@@ -573,7 +568,6 @@ export default function EditCoursePage({ params }) {
             </div>
           )}
         </div>
-
       </div>
     </div>
   );

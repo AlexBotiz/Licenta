@@ -1,4 +1,5 @@
 "use client";
+// Pagina principală a aplicației, cu verificarea autentificării și afișarea cursurilor disponibile, cu funcționalitate de căutare
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
@@ -12,7 +13,7 @@ export default function Home() {
 
   useEffect(() => {
     async function checkAuthAndFetchData() {
-      // 1. Verificăm dacă există o sesiune activă (dacă userul este logat)
+      // Verificăm dacă există o sesiune activă (dacă userul este logat)
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
@@ -21,13 +22,13 @@ export default function Home() {
         return;
       }
 
-      // 2. Dacă este logat, salvăm userul și aducem cursurile
+      // Dacă este logat, salvăm userul și aducem cursurile
       setUser(session.user);
       
       const { data } = await supabase.from('courses').select('*');
       if (data) setCourses(data);
       
-      // 3. Oprim starea de încărcare pentru a afișa pagina
+      // Oprim starea de încărcare pentru a afișa pagina
       setLoading(false);
     }
 
@@ -53,7 +54,6 @@ export default function Home() {
       {/* HEADER */}
       <header className="flex justify-between items-center p-4 border-b border-gray-100 px-8">
         <div className="flex items-center gap-8">
-          {/* Opțional: Când dai click pe titlu, se resetează tot căutarea ca pe orice site mare */}
           <h1 
             className="text-xl font-bold text-blue-600 tracking-tight"
           >
@@ -63,9 +63,9 @@ export default function Home() {
           onClick={() => router.push("/course/create")} 
            className="text-sm font-medium hover:text-blue-600 transition"
           >
-            Create course</button>
-          
-          {/* MODIFICARE: Butonul Browse all resetează acum searchTerm-ul */}
+            Create course
+            </button>
+            
           <button 
             onClick={() => router.push("/courses")} 
             className="text-sm font-medium hover:text-blue-600 transition"
@@ -111,7 +111,7 @@ export default function Home() {
           // Dacă bara de căutare e goală, arătăm doar o mică selecție (primele 3) ca fiind "Recomandate"
           <>
             <div className="border-b border-gray-100 pb-2 mb-4">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Cursuri recomandate</span>
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Cele mai noi cursuri</span>
             </div>
             {courses.slice(0, 3).map((course) => (
               <div key={course.id} onClick={() => router.push(`/course/${course.id}`)} className="group cursor-pointer">

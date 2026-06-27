@@ -1,9 +1,10 @@
 "use client";
+// Pagina pentru crearea unui curs nou, cu adăugare de lecții, exerciții și quiz-uri
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase"; 
 
-// 🎥 FUNCȚIE HELPER: Extrage ID-ul video-ului și generează link-ul corect pentru Embed
+// Funcție utilitară pentru a extrage ID-ul video-ului dintr-un link YouTube și a returna URL-ul embed
 const getYouTubeEmbedUrl = (url) => {
   if (!url) return null;
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
@@ -15,7 +16,7 @@ const getYouTubeEmbedUrl = (url) => {
   return null;
 };
 
-// 💻 LIMBAJE SUPORTATE DE JUDGE0 (ID-urile oficiale din API-ul Judge0 standard)
+// Lista de limbaje de programare suportate pentru exerciții (Judge0)
 const SUPPORTED_LANGUAGES = [
   { id: 71, name: "Python (3.8.1)" },
   { id: 63, name: "JavaScript (Node.js 12.14.0)" },
@@ -25,19 +26,17 @@ const SUPPORTED_LANGUAGES = [
 ];
 
 export default function CreateCoursePage() {
+  // State-urile principale pentru titlu, descriere, elemente și indexul elementului selectat
   const router = useRouter();
-  
-  // Datele generale ale cursului
   const [courseTitle, setCourseTitle] = useState("");
   const [courseDescription, setCourseDescription] = useState("");
-  
-  // Lista de elemente (slide-uri) adăugate în puzzle
   const [elements, setElements] = useState([]);
-  // Indexul elementului selectat în acest moment pentru editare
   const [selectedElementIndex, setSelectedElementIndex] = useState(null);
   const [loading, setLoading] = useState(false);
-
   const [aiPrompt, setAiPrompt] = useState("Ești un mentor de programare. Nu oferi codul complet, ghidează studentul.");
+  const [duration, setDuration] = useState(90);
+  const [level, setLevel] = useState("Începător");
+  const [outcomes, setOutcomes] = useState(["", ""]); 
 
   // Funcție pentru adăugarea unui element nou în listă
   const handleAddElement = (type) => {
@@ -46,13 +45,12 @@ export default function CreateCoursePage() {
     if (type === "lesson") {
       defaultContent = { body: "Scrie conținutul lecției aici...", videoUrl: "" };
     } else if (type === "exercise") {
-      // 🌟 ALINIAT CU PLAYER-UL ȘI EDIT-UL: Structură pe bază de expectedOutput direct
       defaultContent = { 
         instruction: "Cerința exercițiului...", 
         placeholderCode: "# Scrie codul tău aici\n",
         solutionCode: "# Rezolvarea completă a profesorului...\n",
         expectedOutput: "Rezultatul exact așteptat",
-        languageId: 71 // Implicit Python acm că am testat că merge brici
+        languageId: 71 
       };
     } else if (type === "quiz") {
       defaultContent = {
@@ -87,7 +85,7 @@ export default function CreateCoursePage() {
     setElements(updatedElements);
   };
 
-  // Salvarea întregului pachet în Supabase
+  // Funcție pentru salvarea cursului în baza de date
   const handleSaveCourse = async () => {
     if (!courseTitle.trim()) {
       alert("Te rog introdu un titlu pentru curs.");
@@ -106,13 +104,15 @@ export default function CreateCoursePage() {
         alert("Trebuie să fii logat pentru a crea un curs!");
         return;
       }
-
-      const { data: courseData, error: courseError } = await supabase
+        const { data: courseData, error: courseError } = await supabase
         .from("courses")
         .insert([{ 
           title: courseTitle, 
           description: courseDescription,
-          ai_system_prompt: aiPrompt, // <--- ADĂUGAT
+          ai_system_prompt: aiPrompt,
+          duration_minutes: duration, 
+          level: level,               
+          learning_outcomes: outcomes.filter(o => o.trim() !== ""),
           created_by: session.user.email 
         }])
         .select()
@@ -153,7 +153,7 @@ export default function CreateCoursePage() {
       setLoading(false);
     }
   };
-
+  
   const currentElement = selectedElementIndex !== null ? elements[selectedElementIndex] : null;
 
   return (
@@ -199,8 +199,55 @@ export default function CreateCoursePage() {
               onChange={(e) => setAiPrompt(e.target.value)}
               className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50 h-20 resize-none"
             />
+            <div className="grid grid-cols-2 gap-3 mt-4 border-t border-gray-100 pt-4">
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase block mb-2">Timp estimat (min)</label>
+                <input 
+                  type="number" 
+                  value={duration} 
+                  onChange={e => setDuration(parseInt(e.target.value) || 0)} 
+                  className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50 font-semibold" 
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase block mb-2">Nivel</label>
+                <select 
+                  value={level} 
+                  onChange={e => setLevel(e.target.value)} 
+                  className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50 font-semibold cursor-pointer"
+                >
+                  <option value="Începător">Începător</option>
+                  <option value="Intermediar">Intermediar</option>
+                  <option value="Avansat">Avansat</option>
+                </select>
+              </div>
+            </div>
+            <div className="mt-4">
+              <label className="text-xs font-bold text-gray-500 uppercase block mb-2">Ce vei învăța (Obiective)</label>
+              <div className="space-y-2">
+                {outcomes.map((o, i) => (
+                  <input 
+                    key={i} 
+                    value={o} 
+                    onChange={e => {
+                      const newO = [...outcomes]; 
+                      newO[i] = e.target.value; 
+                      setOutcomes(newO);
+                    }} 
+                    className="w-full p-2.5 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50" 
+                    placeholder={`Ex: Funcții și variabile...`} 
+                  />
+                ))}
+                <button 
+                  type="button" 
+                  onClick={() => setOutcomes([...outcomes, ""])} 
+                  className="text-xs text-blue-600 font-bold hover:bg-blue-50 px-3 py-1.5 rounded-lg transition"
+                >
+                  + Adaugă obiectiv
+                </button>
+              </div>
+            </div>
           </div>
-
           <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
             <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">Structură Curs ({elements.length})</h3>
             
@@ -230,7 +277,6 @@ export default function CreateCoursePage() {
                 ))
               )}
             </div>
-
             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
               <button onClick={() => handleAddElement("lesson")} className="flex flex-col items-center justify-center p-3 bg-blue-50 hover:bg-blue-100 border border-blue-100 text-blue-700 rounded-xl transition text-center">
                 <span className="text-lg">📄</span>
@@ -293,7 +339,7 @@ export default function CreateCoursePage() {
                       placeholder="Lipește link-ul (ex: https://www.youtube.com/watch?v=...)"
                     />
                   </div>
-
+                // Afișăm previzualizarea video doar dacă există un link valid
                   {currentElement.content.videoUrl && (
                     <div className="space-y-2">
                       <span className="text-[10px] font-bold text-green-600 uppercase tracking-wider block">Preview Video Instant:</span>
@@ -312,7 +358,7 @@ export default function CreateCoursePage() {
                       )}
                     </div>
                   )}
-
+                  // Editorul de conținut text al lecției
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-600 uppercase block">Conținutul Text al Lecției</label>
                     <textarea
@@ -327,7 +373,7 @@ export default function CreateCoursePage() {
                 </div>
               )}
 
-              {/* 💻 RENDER EXERCIȚIU */}
+              {/* RENDER EXERCIȚIU */}
               {currentElement.type === "exercise" && (
                 <div className="space-y-5">
                   {/* Cerința */}
@@ -416,7 +462,6 @@ export default function CreateCoursePage() {
                       className="w-full p-3 border border-gray-200 rounded-xl text-sm focus:outline-blue-500 bg-gray-50 font-semibold"
                     />
                   </div>
-                  
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-gray-600 uppercase block">Opțiuni de Răspuns și Explicații</label>
                     
@@ -445,7 +490,6 @@ export default function CreateCoursePage() {
                             className="w-full p-2.5 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-blue-500 bg-white"
                             placeholder={`Opțiunea ${oIdx + 1}`}
                           />
-                          
                           {currentElement.content.options.length > 2 && (
                             <button
                               type="button"
@@ -465,7 +509,6 @@ export default function CreateCoursePage() {
                             </button>
                           )}
                         </div>
-                        
                         <div className="pl-7">
                           <input 
                             type="text"
@@ -509,7 +552,6 @@ export default function CreateCoursePage() {
             </div>
           )}
         </div>
-
       </div>
     </div>
   );

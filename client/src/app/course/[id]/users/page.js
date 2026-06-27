@@ -1,4 +1,5 @@
 "use client";
+// Pagina pentru vizualizarea și gestionarea utilizatorilor înscriși la un curs, cu verificarea autentificării și a drepturilor de acces
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../../lib/supabase";
@@ -16,7 +17,7 @@ export default function CourseUsersPage({ params }) {
   const [courseTitle, setCourseTitle] = useState("");
   const [participants, setParticipants] = useState([]);
 
-  // 1. Verificăm drepturile (doar Admin global sau Profesorul cursului au voie aici)
+  // Verificăm drepturile 
   useEffect(() => {
     const verifyAccessAndFetchUsers = async () => {
       try {
@@ -94,29 +95,28 @@ export default function CourseUsersPage({ params }) {
     }
   };
 
-  // 2. Schimbă rolul (Student ⇄ Profesor/Asistent) cu POPUP de confirmare
+  // Schimbă rolul cu popup de confirmare
   const handleToggleRole = async (enrollmentId, currentRole, email) => {
     const nextRole = currentRole === "student" ? "teacher" : "student";
     
-    // 🌟 Generăm un mesaj personalizat în funcție de acțiune
+    // Generăm un mesaj personalizat în funcție de acțiune
     const confirmMessage = currentRole === "student"
       ? `Sigur vrei să îl promovezi pe ${email} la rolul de Profesor? Va avea drepturi depline de editare asupra cursului.`
       : `Sigur vrei să îi retragi drepturile de profesor lui ${email}? Va deveni un simplu Student și nu va mai putea modifica nimic.`;
 
     // Afișăm popup-ul de confirmare
     const confirmAction = confirm(confirmMessage);
-    if (!confirmAction) return; // Dacă apasă „Cancel”, oprim execuția aici
+    if (!confirmAction) return; 
 
     try {
       setLoadingAction(true);
-
       const { error } = await supabase
         .from("enrollments")
         .update({ role: nextRole })
         .eq("id", enrollmentId);
 
       if (error) throw error;
-      
+
       // Reîncărcăm datele local ca să vedem modificarea instant
       await fetchParticipants();
     } catch (err) {
@@ -126,7 +126,7 @@ export default function CourseUsersPage({ params }) {
     }
   };
 
-  // 3. Elimină (Dezînscrie) un utilizator din curs
+  // Dezînscrie un utilizator din curs
   const handleKickUser = async (enrollmentId, email) => {
     const confirmKick = confirm(`Sigur vrei să elimini utilizatorul ${email} din acest curs? Va pierde tot progresul.`);
     if (!confirmKick) return;

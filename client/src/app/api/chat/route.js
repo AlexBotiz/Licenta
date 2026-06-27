@@ -1,6 +1,7 @@
+// Această rută API primește un mesaj de la client, preia prompt-ul sistemului și lecțiile cursului din Supabase, construiește un context și trimite totul către Ollama pentru a genera un răspuns bazat pe AI. Răspunsul este apoi returnat clientului.
 import { createClient } from '@supabase/supabase-js';
 
-// 1. Inițializează clientul aici, folosind variabilele de mediu
+// Inițializează clientul aici, folosind variabilele de mediu
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL, 
   process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -10,7 +11,7 @@ export async function POST(req) {
   const { messages, courseId } = await req.json();
   const userMessage = messages[messages.length - 1].text;
 
-  // 1. Luăm prompt-ul sistemului ȘI toate lecțiile cursului
+  // Luăm prompt-ul sistemului ȘI toate lecțiile cursului
   const { data: course, error } = await supabase
     .from('courses')
     .select('ai_system_prompt')
@@ -23,14 +24,14 @@ export async function POST(req) {
     .eq('course_id', courseId)
     .order('order_index', { ascending: true });
 
-  // 2. Construim contextul din lecții
+  // Construim contextul din lecții
   const context = elements
     .map(el => `Titlu: ${el.title}\nConținut: ${el.content.body || el.content.instruction || ""}`)
     .join("\n---\n");
 
   const systemInstruction = course?.ai_system_prompt || "Ești un mentor de programare.";
 
-  // 3. Trimiterea către Ollama cu tot contextul cursului
+  // Trimiterea către Ollama cu tot contextul cursului
   const response = await fetch('http://localhost:11434/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

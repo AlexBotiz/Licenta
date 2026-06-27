@@ -1,12 +1,13 @@
 "use client";
+// Pagina de login și înregistrare, cu funcționalitate de resetare a parolei
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../lib/supabase"; // Verifică dacă calea e corectă
+import { supabase } from "../../lib/supabase"; 
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLogin, setIsLogin] = useState(true); // Schimbă între Login și Register
+  const [isLogin, setIsLogin] = useState(true); 
   const [error, setError] = useState(null);
   const router = useRouter();
 
@@ -23,7 +24,7 @@ export default function Login() {
       if (error) {
         setError(error.message);
       } else {
-        router.push("/"); // Dacă e logat cu succes, îl trimitem pe pagina principală
+        router.push("/"); 
       }
     } else {
       // LOGICĂ PENTRU REGISTER
@@ -34,15 +35,13 @@ export default function Login() {
       if (error) {
         setError(error.message);
       } else {
-        // La înregistrare, Supabase vrea implicit să confirmi emailul, 
-        // dar pentru dev e suficient să zici că a mers sau să dezactivezi confirmarea
         alert("Cont creat! Acum te poți loga (sau verifică emailul).");
-        setIsLogin(true); // Îl mutăm pe fereastra de login
+        setIsLogin(true); 
       }
     }
   };
 
-  // 🌟 FUNCȚIA NOUĂ PENTRU RESETAREA PAROLEI
+  // Funcție pentru resetarea parolei
   const handleForgotPassword = async () => {
     // Verificăm dacă utilizatorul a completat mail-ul mai întâi
     if (!email || !email.trim()) {
@@ -65,7 +64,7 @@ export default function Login() {
       setError(err.message);
     }
   };
-
+ // Restul codului pentru UI și form-ul de login/register
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white p-8 rounded-lg shadow-md w-96 border border-gray-100">
@@ -95,12 +94,11 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            
-            {/* 🌟 BUTONUL NOU: Apare discret doar la Login, imediat sub input-ul de parolă */}
+            {/* Afișăm butonul de resetare a parolei doar în modul de login */}
             {isLogin && (
               <div className="text-right mt-1">
                 <button
-                  type="button" // 💡 Important: Să fie de tip button ca să nu dea submit la formular când dai click pe el
+                  type="button" 
                   onClick={handleForgotPassword}
                   className="text-xs text-blue-600 hover:underline bg-transparent border-none p-0 cursor-pointer font-medium"
                 >
@@ -121,7 +119,7 @@ export default function Login() {
         <div className="mt-6 text-center">
           <button 
             onClick={() => {
-              setError(null); // Curățăm erorile vechi când schimbăm ecranele
+              setError(null); 
               setIsLogin(!isLogin);
             }} 
             className="text-sm text-blue-600 hover:underline"

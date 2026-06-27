@@ -1,4 +1,5 @@
 "use client";
+// Pagina pentru a vizualiza toate cursurile disponibile, cu funcționalitate de filtrare și navigare către pagina fiecărui curs
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
@@ -16,7 +17,7 @@ export default function BrowseCourses() {
         return;
       }
 
-      // Luăm TOATE cursurile din baza de date
+      // Luăm toate cursurile din baza de date
       const { data } = await supabase.from('courses').select('*');
       if (data) setCourses(data);
       setLoading(false);

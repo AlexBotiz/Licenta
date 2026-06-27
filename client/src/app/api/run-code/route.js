@@ -1,10 +1,9 @@
+// Această rută API primește cod sursă și un ID de limbaj, îl trimite către Judge0 prin RapidAPI pentru a fi compilat și executat, și returnează rezultatele (stdout, stderr, compile_output și status) înapoi clientului.
 import { NextResponse } from "next/server";
 
 export async function POST(request) {
   try {
     const { source_code, language_id } = await request.json();
-
-    // 🔍 AJUSTARE: Am adăugat &base64_encoded=true în URL pentru siguranță completă
     const url = "https://judge0-ce.p.rapidapi.com/submissions?wait=true&fields=stdout,stderr,compile_output,status&base64_encoded=true";
 
     console.log("=== [DEBUG] TRIMITERE CĂTRE RAPIDAPI ===");
@@ -24,8 +23,6 @@ export async function POST(request) {
     });
 
     const data = await response.json();
-    
-    // 🖥️ ACEST LOG ÎȚI VA ARĂTA EXACT CE SPUNE SERVERUL ÎN TERMINAL:
     console.log("=== [DEBUG] RĂSPUNS DIRECT JUDGE0 ===");
     console.log(data);
     console.log("=====================================");

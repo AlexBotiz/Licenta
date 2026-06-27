@@ -1,8 +1,10 @@
 "use client";
+// Pagina de profil a utilizatorului, unde poate vedea și edita datele sale, precum și cursurile la care este înscris.
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 
+// Componentele de UI pentru afișarea profilului și a cursurilor
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
   const [profileData, setProfileData] = useState({ username: "", role: "student", avatar_url: "" });
@@ -38,8 +40,6 @@ export default function ProfilePage() {
       // Dacă profilul nu există, îl creăm în siguranță cu .upsert()
       if (!profile && !profileError) {
         const defaultName = session.user.email.split("@")[0];
-        
-        // .upsert() previne eroarea 23505 în cazul execuțiilor paralele din React StrictMode
         const { data: newProfile, error: insertError } = await supabase
           .from("profiles")
           .upsert({ email: session.user.email, username: defaultName, role: "student" })
@@ -79,11 +79,11 @@ export default function ProfilePage() {
   const handleSaveProfile = async () => {
     const { error } = await supabase
       .from("profiles")
-      .update({ username: editUsername }) // 👈 Am scos 'role' de aici
+      .update({ username: editUsername })
       .eq("email", user.email);
 
     if (!error) {
-      setProfileData({ ...profileData, username: editUsername }); // 👈 Și de aici
+      setProfileData({ ...profileData, username: editUsername }); 
       setIsEditing(false);
     } else {
       console.error("Eroare la salvare în DB:", error);
@@ -133,6 +133,30 @@ export default function ProfilePage() {
     router.push("/login");
   };
 
+  const handleUnenroll = async (courseId, e) => {
+    e.stopPropagation(); 
+    
+    const confirmare = window.confirm("Ești sigur că vrei să anulezi înscrierea la acest curs?");
+    if (!confirmare) return;
+
+    try {
+      const { error } = await supabase
+        .from("enrollments")
+        .delete()
+        .eq("user_email", user.email)
+        .eq("course_id", courseId);
+
+      if (error) throw error;
+
+      // Actualizăm starea locală ca să dispară cardul instant, fără refresh
+      setEnrolledCourses(prevCourses => prevCourses.filter(c => c.id !== courseId));
+    } catch (error) {
+      console.error("Eroare la anularea înscrierii:", error);
+      alert("Eroare: " + error.message);
+    }
+  };
+
+ // Funcție pentru a determina stilul badge-ului în funcție de rol
   const getRoleBadgeStyle = (role) => {
     if (role === "admin") return "bg-red-50 text-red-600 border border-red-200";
     if (role === "profesor") return "bg-purple-50 text-purple-600 border border-purple-200";
@@ -143,6 +167,7 @@ export default function ProfilePage() {
     return <div className="min-h-screen flex items-center justify-center bg-white text-gray-500">Se încarcă profilul...</div>;
   }
 
+  // RENDERIZAREA PAGINII DE PROFIL
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-black">
       {/* NAVBAR */}
@@ -267,9 +292,16 @@ export default function ProfilePage() {
                       {course.description || "Continuă studiul structurat și antrenamentul cu asistentul tău AI."}
                     </p>
                   </div>
-                  <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center text-xs font-semibold text-blue-600">
-                    <span>Deschide cursul</span>
-                    <span>→</span>
+                  <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center text-xs font-semibold">
+                    <button 
+                      onClick={(e) => handleUnenroll(course.id, e)}
+                      className="text-red-500 hover:text-red-600 hover:underline transition"
+                    >
+                      Renunță la curs
+                    </button>
+                    <span className="text-blue-600 flex items-center gap-1">
+                      Deschide <span aria-hidden="true">→</span>
+                    </span>
                   </div>
                 </div>
               ))}

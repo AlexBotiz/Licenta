@@ -1,4 +1,5 @@
 "use client";
+// Pagina pentru vizualizarea și gestionarea utilizatorilor înscriși la un curs, cu verificarea autentificării și a drepturilor de acces
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../../lib/supabase";
@@ -17,26 +18,23 @@ export default function CoursePlayerPage({ params }) {
   const router = useRouter();
   const unwrappedParams = React.use(params);
   const courseId = unwrappedParams.id;
-  
   const [course, setCourse] = useState(null);
   const [elements, setElements] = useState([]);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  
   const [quizSelectedOption, setQuizSelectedOption] = useState(null);
   const [quizFeedback, setQuizFeedback] = useState(null);
   const [exerciseCode, setExerciseCode] = useState("");
   const [exerciseFeedback, setExerciseFeedback] = useState(null);
   const [isCompiling, setIsCompiling] = useState(false);
   const [savedAnswers, setSavedAnswers] = useState({});
-
-  // 🤖 STATE PENTRU ASISTENTUL AI
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState([
     { role: "ai", text: "Salut! Sunt asistentul tău AI. Ai nevoie de ajutor cu acest exercițiu sau vrei să îți explic ceva din lecție?" }
   ]);
 
+ // Verificăm autentificarea și aducem datele cursului și ale elementelor
   useEffect(() => {
     async function loadCourseAndElements() {
       try {
@@ -71,6 +69,7 @@ export default function CoursePlayerPage({ params }) {
   }, [courseId]);
 
   useEffect(() => {
+    // Când se schimbă pasul curent, resetăm stările relevante pentru quiz sau exercițiu
     const currentElem = elements[currentStepIndex];
     if (!currentElem) return;
 
@@ -111,7 +110,7 @@ export default function CoursePlayerPage({ params }) {
     
     return false;
   };
-
+// Funcție pentru a gestiona click-ul pe un pas din sidebar, cu verificarea completării pașilor anteriori
   const handleSidebarStepClick = (targetIdx) => {
     if (targetIdx <= currentStepIndex) {
       setCurrentStepIndex(targetIdx);
@@ -126,7 +125,7 @@ export default function CoursePlayerPage({ params }) {
     }
     setCurrentStepIndex(targetIdx);
   };
-
+// Funcție pentru a verifica răspunsul la quiz și a salva feedback-ul
   const handleVerifyQuiz = () => {
     const currentElement = elements[currentStepIndex];
     if (quizSelectedOption === null) {
@@ -146,7 +145,7 @@ export default function CoursePlayerPage({ params }) {
       }
     }));
   };
-
+// Funcție pentru a verifica codul exercițiului, a rula codul pe server și a salva feedback-ul
   const handleVerifyExercise = async () => {
     if (!exerciseCode.trim()) {
       alert("Scrie codul înainte de a-l verifica!");
@@ -219,6 +218,7 @@ export default function CoursePlayerPage({ params }) {
     }
   };
 
+// Funcție pentru a trimite mesajul către AI și a primi răspunsul, actualizând chat-ul
 const handleSendChatMessage = async (e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
@@ -233,7 +233,7 @@ const handleSendChatMessage = async (e) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             messages: newMessages,
-            courseId: courseId // Trimitem ID-ul cursului curent
+            courseId: courseId 
           }),
         });
 
@@ -539,7 +539,7 @@ const handleSendChatMessage = async (e) => {
         </main>
       </div>
 
-      {/* 🤖 CHATBOT AI WIDGET (Plutitor dreapta-jos) */}
+      {/* CHATBOT AI WIDGET */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
         {/* Fereastra de Chat */}
         {isChatOpen && (
