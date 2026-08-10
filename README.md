@@ -69,16 +69,7 @@ Asigurati-va ca serviciul Ollama este activ si rulati modelul Llama 3 utilizand 
 ollama run llama3
 ```
 
-### Pasul 2: Pornirea Serverului de Backend
-Deschideti un terminal nou, navigati in folderul `Server` si lansati microserviciul dedicat monitorizarii :
-
-```bash
-cd Server
-npm run dev
-```
-*Serverul va rula si va fi accesibil la adresa: http://localhost:5000*
-
-### Pasul 3: Pornirea Interfetei Grafice (Client)
+### Pasul 2: Pornirea Interfetei Grafice (Client)
 Deschideti un al treilea terminal, navigati in folderul `client` si porniti serverul de dezvoltare Next.js :
 
 ```bash
@@ -89,4 +80,3 @@ npm run dev
 
 ## Structura Arhitecturala
 * `/client` - Contine paginile, rutele API interne (`/api/chat`), interfata grafica dezvoltata in Next.js si componentele Tailwind CSS .
-* `/Server` - Gazduieste serverul minimalist Node.js si Express responsabil cu validarea starii tehnice a sistemului .
