@@ -6,8 +6,8 @@ Aceasta aplicatie reprezinta o platforma educationala bazata pe web, adaptata pe
 Spre deosebire de solutiile comerciale cloud, utilizarea unei instante locale Ollama elimina costurile financiare aferente API-urilor terte, reduce latentele si asigura confidentialitatea totala a datelor si a interactiunilor in cadrul procesului didactic .
 
 ## Tehnologii si Instrumente Utilizate
-* **Frontend:** Next.js 15, Tailwind CSS v4 .
-* **Backend:** Node.js (Serviciu independent Express pe portul 5000) .
+* **Frontend:** Next.js 15, Tailwind CSS v4, React .
+* **Backend:** Next.js .
 * **Baza de date:** Supabase (PostgreSQL cu suport relational) .
 * **Layer Inteligenta Artificiala:** Ollama (Rularea locala a modelului Llama 3) .
 
