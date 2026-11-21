@@ -40,14 +40,7 @@ RAPIDAPI_KEY=cheia_dumneavoastra_rapidapi
 ```
 
 ### 3. Instalarea Dependentelor
-Este necesara instalarea pachetelor atat pentru modulul de server, cat si pentru cel de client.
-
-**Pentru Server (Node.js/Express):**
-
-```bash
-cd Server
-npm install
-```
+Este necesara instalarea pachetelor pentru modulul de client.
 
 **Pentru Client (Next.js):**
 
